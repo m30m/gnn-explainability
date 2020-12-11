@@ -2,9 +2,11 @@ import random
 
 import networkx as nx
 import numpy as np
+import torch
+from torch_geometric.utils import from_networkx
 
 
-def infection_dataset(max_dist=4):
+def infection_dataset_old(max_dist=4):  # anything equal or larger than max_dist has a far away label
     g = nx.balanced_tree(3, 6)
     N = len(g.nodes())
 
@@ -83,3 +85,41 @@ def infection_dataset(max_dist=4):
         eids = to_eids(sp)
         explanations.append(eids)
     return g, features, labels, list(test_nodes), explanations
+
+
+def infection_dataset(max_dist=4):  # anything larger than max_dist has a far away label
+    g = nx.erdos_renyi_graph(1000, 0.004)
+    N = len(g.nodes())
+    infected_nodes = random.sample(g.nodes(), 20)
+    g.add_node('X') # dummy node for easier computation, will be removed in the end
+    for u in infected_nodes:
+        g.add_edge('X', u)
+    shortest_path_length = nx.single_source_shortest_path_length(g, 'X')
+    unique_solution_nodes = []
+    unique_solution_explanations = []
+    labels = []
+    features = np.zeros((N, 2))
+    for i in range(N):
+        if i == 'X':
+            continue
+        length = shortest_path_length.get(i, 100) - 1
+        labels.append(min(max_dist + 1, length))
+        col = 0 if i in infected_nodes else 1
+        features[i, col] = 1
+        if 0 < length <= max_dist:
+            path_iterator = iter(nx.all_shortest_paths(g, i, 'X'))
+            unique_shortest_path = next(path_iterator)
+            if next(path_iterator,0) != 0:
+                continue
+            unique_shortest_path.pop()  # pop 'X' node
+            unique_solution_explanations.append(unique_shortest_path)
+            unique_solution_nodes.append(i)
+    g.remove_node('X')
+    data = from_networkx(g)
+    data.x = torch.tensor(features, dtype=torch.float)
+    data.y=torch.tensor(labels)
+    data.unique_solution_nodes = unique_solution_nodes
+    data.unique_solution_explanations = unique_solution_explanations
+    data.num_classes = 1 + max_dist + 1
+    print('created one')
+    return data

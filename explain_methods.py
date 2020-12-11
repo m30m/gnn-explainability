@@ -37,9 +37,9 @@ def explain_ig(model, node_idx, data, target):
     return edge_mask
 
 
-def explain_occlusion(model, node_idx, data, target, depth_limit=4):
-    p, label = model(data.x, data.edge_index)[node_idx].max(dim=0)
-    pred_prob, pred_label = p.item(), label.item()
+def explain_occlusion(model, node_idx, data, target):
+    depth_limit = len(model.convs) + 1
+    pred_prob = model(data.x, data.edge_index)[node_idx][target].item()
     g = to_networkx(data)
     subgraph_nodes = []
     for k, v in nx.shortest_path_length(g, node_idx).items():
@@ -52,9 +52,37 @@ def explain_occlusion(model, node_idx, data, target, depth_limit=4):
         u, v = list(data.edge_index[:, i].numpy())
         if (u, v) in subgraph.edges():
             edge_occlusion_mask[i] = False
-            prob = model(data.x, data.edge_index[:, edge_occlusion_mask])[node_idx][pred_label].item()
+            prob = model(data.x, data.edge_index[:, edge_occlusion_mask])[node_idx][target].item()
             edge_mask[i] = pred_prob - prob
             edge_occlusion_mask[i] = True
+    return edge_mask / (np.abs(edge_mask).max())
+
+
+def explain_occlusion_undirected(model, node_idx, data, target):
+    depth_limit = len(model.convs) + 1
+    pred_prob = model(data.x, data.edge_index)[node_idx][target].item()
+    g = to_networkx(data)
+    subgraph_nodes = []
+    for k, v in nx.shortest_path_length(g, node_idx).items():
+        if v < depth_limit:
+            subgraph_nodes.append(k)
+    subgraph = g.subgraph(subgraph_nodes)
+    edge_occlusion_mask = np.ones(data.num_edges, dtype=bool)
+    edge_mask = np.zeros(data.num_edges)
+    reverse_edge_map = {}
+    for i in range(data.num_edges):
+        u, v = list(data.edge_index[:, i].numpy())
+        reverse_edge_map[(u, v)] = i
+
+    for (u, v) in subgraph.edges():
+        if u > v:  # process each edge once
+            continue
+        i1 = reverse_edge_map[(u, v)]
+        i2 = reverse_edge_map[(v, u)]
+        edge_occlusion_mask[[i1, i2]] = False
+        prob = model(data.x, data.edge_index[:, edge_occlusion_mask])[node_idx][target].item()
+        edge_mask[[i1, i2]] = pred_prob - prob
+        edge_occlusion_mask[[i1, i2]] = True
     return edge_mask / (np.abs(edge_mask).max())
 
 
