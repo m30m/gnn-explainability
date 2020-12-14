@@ -105,6 +105,8 @@ def main(sample_count: int = typer.Option(10, help='How many times to retry the 
     rolling_model_test = []
     NUM_GRAPHS = 10
     TEST_RATIO = 0.4
+    mlflow.log_param('num_graphs', NUM_GRAPHS)
+    mlflow.log_param('test_ratio', TEST_RATIO)
     for experiment_i in tq(range(sample_count)):
         dataset = [infection_dataset() for i in range(NUM_GRAPHS)]
         split_point = int(len(dataset) * TEST_RATIO)
