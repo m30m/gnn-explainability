@@ -93,14 +93,6 @@ def make_data():
     return data
 
 
-def make_model_forward_rewired(model):
-    def model_forward(edge_mask, node_idx, data):
-        out = model(data.x, data.edge_index_rewired, edge_mask)
-        return out[[node_idx]]
-
-    return model_forward
-
-
 def evaluate_explanation(explain_function, model, test_dataset):
     accs = []
     for dss in test_dataset:
@@ -125,9 +117,8 @@ def evaluate_explanation(explain_function, model, test_dataset):
                           dss.dummy_edges)
             final_mask = final_mask
 
-            attribution = explain_function(model, node_idx, dss, target)[final_mask.cpu()]
-            dss.edge_index, dss.edge_index_rewired = dss.edge_index_rewired, dss.edge_index
-            attribution_rewired = explain_function(model, node_idx, dss, target)[final_mask.cpu()]
+            attribution = explain_function(model, node_idx, dss.x, dss.edge_index, target)[final_mask.cpu()]
+            attribution_rewired = explain_function(model, node_idx, dss.x, dss.edge_index_rewired, target)[final_mask.cpu()]
 
             before_afters.append((attribution.mean(), attribution_rewired.mean()))
             if attribution.mean() > attribution_rewired.mean():

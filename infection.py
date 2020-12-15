@@ -5,6 +5,7 @@ import networkx as nx
 import numpy as np
 import torch
 from torch_geometric.utils import from_networkx
+from tqdm import tqdm as tq
 
 
 def infection_dataset_old(max_dist=4):  # anything equal or larger than max_dist has a far away label
@@ -172,7 +173,7 @@ def evaluate_explanation(explain_function, model, test_dataset):
             if pred[node_idx] != data.y[node_idx]:
                 misclassify_count += 1
                 continue
-            edge_mask = explain_function(model, node_idx, data, data.y[node_idx].item())
+            edge_mask = explain_function(model, node_idx, data.x, data.edge_index, data.y[node_idx].item())
             edge_values = aggregate_directions(edge_mask, data.edge_index)
             explain_acc = get_accuracy_undirected(correct_ids, edge_values)
             accs.append(explain_acc)

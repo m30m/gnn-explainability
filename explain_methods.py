@@ -2,22 +2,21 @@ import networkx as nx
 import numpy as np
 import torch
 from captum.attr import Saliency, IntegratedGradients
+from torch_geometric.data import Data
 from torch_geometric.nn import GNNExplainer
 from torch_geometric.utils import to_networkx
 
 
-def make_model_forward(model):
-    def model_forward(edge_mask, node_idx, data):
-        out = model(data.x, data.edge_index, edge_mask)
-        return out[[node_idx]]
-
-    return model_forward
+def model_forward(edge_mask, model, node_idx, x, edge_index):
+    out = model(x, edge_index, edge_mask)
+    return out[[node_idx]]
 
 
-def explain_sa(model, node_idx, data, target):
-    saliency = Saliency(make_model_forward(model))
-    input_mask = torch.ones(data.edge_index.shape[1]).requires_grad_(True)
-    saliency_mask = saliency.attribute(input_mask, target=target, additional_forward_args=(node_idx, data))
+def explain_sa(model, node_idx, x, edge_index, target):
+    saliency = Saliency(model_forward)
+    input_mask = torch.ones(edge_index.shape[1]).requires_grad_(True)
+    saliency_mask = saliency.attribute(input_mask, target=target,
+                                       additional_forward_args=(model, node_idx, x, edge_index))
 
     edge_mask = np.abs(saliency_mask.numpy())
     if edge_mask.max() > 0:
@@ -25,11 +24,11 @@ def explain_sa(model, node_idx, data, target):
     return edge_mask
 
 
-def explain_ig(model, node_idx, data, target):
-    ig = IntegratedGradients(make_model_forward(model))
-    input_mask = torch.ones(data.edge_index.shape[1]).requires_grad_(True)
-    ig_mask = ig.attribute(input_mask, target=target, additional_forward_args=(node_idx, data),
-                           internal_batch_size=data.edge_index.shape[1])
+def explain_ig(model, node_idx, x, edge_index, target):
+    ig = IntegratedGradients(model_forward)
+    input_mask = torch.ones(edge_index.shape[1]).requires_grad_(True)
+    ig_mask = ig.attribute(input_mask, target=target, additional_forward_args=(model, node_idx, x, edge_index),
+                           internal_batch_size=edge_index.shape[1])
 
     edge_mask = np.abs(ig_mask.detach().numpy())
     if edge_mask.max() > 0:
@@ -37,8 +36,9 @@ def explain_ig(model, node_idx, data, target):
     return edge_mask
 
 
-def explain_occlusion(model, node_idx, data, target):
+def explain_occlusion(model, node_idx, x, edge_index, target):
     depth_limit = len(model.convs) + 1
+    data = Data(x=x, edge_index=edge_index)
     pred_prob = model(data.x, data.edge_index)[node_idx][target].item()
     g = to_networkx(data)
     subgraph_nodes = []
@@ -58,8 +58,9 @@ def explain_occlusion(model, node_idx, data, target):
     return edge_mask / (np.abs(edge_mask).max())
 
 
-def explain_occlusion_undirected(model, node_idx, data, target):
+def explain_occlusion_undirected(model, node_idx, x, edge_index, target):
     depth_limit = len(model.convs) + 1
+    data = Data(x=x, edge_index=edge_index)
     pred_prob = model(data.x, data.edge_index)[node_idx][target].item()
     g = to_networkx(data)
     subgraph_nodes = []
@@ -86,7 +87,7 @@ def explain_occlusion_undirected(model, node_idx, data, target):
     return edge_mask / (np.abs(edge_mask).max())
 
 
-def explain_gnnexplainer(model, node_idx, data, target):
+def explain_gnnexplainer(model, node_idx, x, edge_index, target):
     explainer = GNNExplainer(model, epochs=200, log=False)
-    node_feat_mask, edge_mask = explainer.explain_node(node_idx, data.x, data.edge_index)
+    node_feat_mask, edge_mask = explainer.explain_node(node_idx, x, edge_index)
     return edge_mask.numpy()

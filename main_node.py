@@ -88,9 +88,10 @@ def main(experiment: Experiment = typer.Argument(..., help="Dataset to use"),
     mlflow.log_param('test_ratio', TEST_RATIO)
     for experiment_i in tq(range(sample_count)):
         if experiment == Experiment.infection:
-            dataset = [infection.make_data() for i in range(NUM_GRAPHS)]
+            make_data = infection.make_data
         if experiment == Experiment.community:
-            dataset = [community.make_data() for i in range(NUM_GRAPHS)]
+            make_data = community.make_data
+        dataset = [make_data() for i in range(NUM_GRAPHS)]
         split_point = int(len(dataset) * TEST_RATIO)
         test_dataset = dataset[:split_point]
         train_dataset = dataset[split_point:]
@@ -129,7 +130,7 @@ def evaluate_explanation(explain_function, model, test_dataset, experiment):
     if experiment == Experiment.infection:
         return infection.evaluate_explanation(explain_function, model, test_dataset)
     if experiment == Experiment.community:
-        community.evaluate_explanation(explain_function, model, test_dataset)
+        return community.evaluate_explanation(explain_function, model, test_dataset)
 
 
 if __name__ == "__main__":
