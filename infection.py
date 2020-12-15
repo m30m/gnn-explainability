@@ -1,4 +1,5 @@
 import random
+from collections import defaultdict
 
 import networkx as nx
 import numpy as np
@@ -87,7 +88,7 @@ def infection_dataset_old(max_dist=4):  # anything equal or larger than max_dist
     return g, features, labels, list(test_nodes), explanations
 
 
-def infection_dataset(max_dist=4):  # anything larger than max_dist has a far away label
+def make_data(max_dist=4):  # anything larger than max_dist has a far away label
     g = nx.erdos_renyi_graph(1000, 0.004)
     N = len(g.nodes())
     infected_nodes = random.sample(g.nodes(), 20)
@@ -117,9 +118,63 @@ def infection_dataset(max_dist=4):  # anything larger than max_dist has a far aw
     g.remove_node('X')
     data = from_networkx(g)
     data.x = torch.tensor(features, dtype=torch.float)
-    data.y=torch.tensor(labels)
+    data.y = torch.tensor(labels)
     data.unique_solution_nodes = unique_solution_nodes
     data.unique_solution_explanations = unique_solution_explanations
     data.num_classes = 1 + max_dist + 1
     print('created one')
     return data
+
+
+def get_accuracy(correct_ids, edge_mask, edge_index):
+    correct_count = 0
+    correct_edges = list(zip(correct_ids[1:], correct_ids))
+
+    for x in np.argsort(-edge_mask)[:len(correct_ids)]:
+        u, v = edge_index[:, x]
+        u, v = u.item(), v.item()
+        if (u, v) in correct_edges:
+            correct_count += 1
+    return correct_count / len(correct_edges)
+
+
+def get_accuracy_undirected(correct_ids, edge_values):
+    correct_count = 0
+    correct_edges = list(zip(correct_ids[1:], correct_ids))
+
+    top_edges = list(sorted([(-value, edge) for edge, value in edge_values.items()]))[:len(correct_ids)]
+    for _, (u, v) in top_edges:
+        if (u, v) in correct_edges or (v, u) in correct_edges:
+            correct_count += 1
+    return correct_count / len(correct_edges)
+
+
+def aggregate_directions(edge_mask, edge_index):
+    edge_values = defaultdict(float)
+    for x in range(len(edge_mask)):
+        u, v = edge_index[:, x]
+        u, v = u.item(), v.item()
+        if u > v:
+            u, v = v, u
+        edge_values[(u, v)] += edge_mask[x]
+    return edge_values
+
+
+def evaluate_explanation(explain_function, model, test_dataset):
+    accs = []
+    misclassify_count = 0
+    for data in test_dataset:
+        _, pred = model(data.x, data.edge_index).max(dim=1)
+        pbar = tq(list(zip(data.unique_solution_nodes, data.unique_solution_explanations)), disable=False)
+        for node_idx, correct_ids in pbar:
+            if len(correct_ids) == 0:
+                continue
+            if pred[node_idx] != data.y[node_idx]:
+                misclassify_count += 1
+                continue
+            edge_mask = explain_function(model, node_idx, data, data.y[node_idx].item())
+            edge_values = aggregate_directions(edge_mask, data.edge_index)
+            explain_acc = get_accuracy_undirected(correct_ids, edge_values)
+            accs.append(explain_acc)
+            pbar.set_postfix(acc=np.mean(accs))
+    return accs

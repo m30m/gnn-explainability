@@ -1,4 +1,5 @@
 from collections import defaultdict
+from enum import Enum
 
 import mlflow
 import numpy as np
@@ -6,40 +7,12 @@ import typer
 from torch_geometric.data import Data, DataLoader
 from tqdm import tqdm as tq
 
-from infection import infection_dataset
+import infection
+import community
 from models_node import *
 from explain_methods import *
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-def make_coo_edges_by_id(g):
-    edges = []
-    for u, v, d in sorted(list(g.edges(data=True)), key=lambda x: x[2]['id']):
-        edges.append([u, v])
-    return torch.tensor(edges, dtype=torch.long).t().contiguous()
-
-
-def get_accuracy(correct_ids, edge_mask, edge_index):
-    correct_count = 0
-    correct_edges = list(zip(correct_ids[1:], correct_ids))
-
-    for x in np.argsort(-edge_mask)[:len(correct_ids)]:
-        u, v = edge_index[:, x]
-        u, v = u.item(), v.item()
-        if (u, v) in correct_edges:
-            correct_count += 1
-    return correct_count / len(correct_edges)
-
-
-def get_accuracy_undirected(correct_ids, edge_values):
-    correct_count = 0
-    correct_edges = list(zip(correct_ids[1:], correct_ids))
-
-    top_edges = list(sorted([(-value, edge) for edge, value in edge_values.items()]))[:len(correct_ids)]
-    for _, (u, v) in top_edges:
-        if (u, v) in correct_edges or (v, u) in correct_edges:
-            correct_count += 1
-    return correct_count / len(correct_edges)
 
 
 def train(model, optimizer, train_loader):
@@ -81,7 +54,13 @@ def train_and_test(model, train_loader, test_loader):
     return train_acc, test_acc
 
 
-def main(sample_count: int = typer.Option(10, help='How many times to retry the whole experiment'),
+class Experiment(str, Enum):
+    infection = "infection"
+    community = "community"
+
+
+def main(experiment: Experiment = typer.Argument(..., help="Dataset to use"),
+         sample_count: int = typer.Option(10, help='How many times to retry the whole experiment'),
          num_layers: int = typer.Option(4, help='Number of layers in the GNN model'),
          concat_features: bool = typer.Option(True,
                                               help='Concat embeddings of each convolutional layer for final fc layers'),
@@ -90,7 +69,7 @@ def main(sample_count: int = typer.Option(10, help='How many times to retry the 
          explain_method: str = typer.Option('sa',
                                             help="Explanation method to use. Can be ['sa','ig','gnnexplainer','occlusion'] "),
          ):
-    mlflow.set_experiment('Infection Dataset')
+    mlflow.set_experiment(experiment.value)
     arguments = {
         'sample_count': sample_count,
         'explain_method': explain_method,
@@ -108,7 +87,10 @@ def main(sample_count: int = typer.Option(10, help='How many times to retry the 
     mlflow.log_param('num_graphs', NUM_GRAPHS)
     mlflow.log_param('test_ratio', TEST_RATIO)
     for experiment_i in tq(range(sample_count)):
-        dataset = [infection_dataset() for i in range(NUM_GRAPHS)]
+        if experiment == Experiment.infection:
+            dataset = [infection.make_data() for i in range(NUM_GRAPHS)]
+        if experiment == Experiment.community:
+            dataset = [community.make_data() for i in range(NUM_GRAPHS)]
         split_point = int(len(dataset) * TEST_RATIO)
         test_dataset = dataset[:split_point]
         train_dataset = dataset[split_point:]
@@ -130,9 +112,9 @@ def main(sample_count: int = typer.Option(10, help='How many times to retry the 
         }
         mlflow.log_metrics(metrics, step=experiment_i)
 
-        for explain_name in ['occlusion','occlusion_undirected','gnnexplainer','sa', 'ig']:
+        for explain_name in ['gnnexplainer','sa','occlusion','occlusion_undirected', 'ig']:
             explain_function = eval('explain_' + explain_name)
-            accs, misclassify_count = evaluate_explanation(explain_function, model, test_dataset)
+            accs = evaluate_explanation(explain_function, model, test_dataset, experiment)
             print(explain_name, np.mean(accs), np.std(accs))
             rolling_explain[explain_name].append(np.mean(accs))
             metrics = {
@@ -143,35 +125,11 @@ def main(sample_count: int = typer.Option(10, help='How many times to retry the 
             mlflow.log_metrics(metrics, step=experiment_i)
 
 
-def aggregate_directions(edge_mask, edge_index):
-    edge_values = defaultdict(float)
-    for x in range(len(edge_mask)):
-        u, v = edge_index[:, x]
-        u, v = u.item(), v.item()
-        if u > v:
-            u, v = v, u
-        edge_values[(u, v)] += edge_mask[x]
-    return edge_values
-
-
-def evaluate_explanation(explain_function, model, test_dataset):
-    accs = []
-    misclassify_count = 0
-    for data in test_dataset:
-        _, pred = model(data.x, data.edge_index).max(dim=1)
-        pbar = tq(list(zip(data.unique_solution_nodes, data.unique_solution_explanations)), disable=False)
-        for node_idx, correct_ids in pbar:
-            if len(correct_ids) == 0:
-                continue
-            if pred[node_idx] != data.y[node_idx]:
-                misclassify_count += 1
-                continue
-            edge_mask = explain_function(model, node_idx, data, data.y[node_idx].item())
-            edge_values = aggregate_directions(edge_mask, data.edge_index)
-            explain_acc = get_accuracy_undirected(correct_ids, edge_values)
-            accs.append(explain_acc)
-            pbar.set_postfix(acc=np.mean(accs))
-    return accs, misclassify_count
+def evaluate_explanation(explain_function, model, test_dataset, experiment):
+    if experiment == Experiment.infection:
+        return infection.evaluate_explanation(explain_function, model, test_dataset)
+    if experiment == Experiment.community:
+        community.evaluate_explanation(explain_function, model, test_dataset)
 
 
 if __name__ == "__main__":
