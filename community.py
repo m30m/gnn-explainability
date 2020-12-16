@@ -54,7 +54,7 @@ def make_data():
         colors.extend([i] * SZ)
     labels = colors.copy()
 
-    for i in random.sample(list(range(N)), 500):
+    for i in random.sample(list(range(N)), PERTURB_COUNT):
         choices = list(range(10))
         # choices.remove(colors[i])
         colors[i] = random.choice(choices)
@@ -131,15 +131,11 @@ def evaluate_explanation(explain_function, model, test_dataset):
                               k_hop_subgraph(node_idx, depth_limit, edge_index_rewired)[3])
 
                 final_mask = final_mask.cpu() & rewire_mask
-                # for other explanations
-                attribution = explain_function(model, node_idx, dss, dss.edge_index)[final_mask]
-                attribution_rewired = explain_function(model, node_idx, dss, edge_index_rewired)[final_mask]
-
+                attribution = explain_function(model, node_idx, dss.x, dss.edge_index, target)[final_mask]
+                attribution_rewired = explain_function(model, node_idx, dss.x, edge_index_rewired, target)[final_mask]
 
                 before_afters.append((attribution.mean(), attribution_rewired.mean()))
                 if attribution.mean() > attribution_rewired.mean():
-                    print('attr shapes', attribution_rewired.shape)
-                    print('attr means', attribution.mean(), attribution_rewired.mean())
                     bads += 1
                     # print(node_idx)
 

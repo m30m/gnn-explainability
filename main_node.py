@@ -44,8 +44,14 @@ def test(model, loader):
 
 
 def train_and_test(model, train_loader, test_loader):
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.003, weight_decay=5e-4)
-    pbar = tq(range(1, 201))
+    weight_decay = 0
+    lr = 0.005
+    epochs = 200
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    mlflow.log_param('weight_decay', weight_decay)
+    mlflow.log_param('lr', lr)
+    mlflow.log_param('epochs', epochs)
+    pbar = tq(range(epochs))
     for epoch in pbar:
         train_loss = train(model, optimizer, train_loader)
         train_acc = test(model, train_loader)
