@@ -6,6 +6,7 @@ from torch_geometric.data import Data
 from torch_geometric.nn import GNNExplainer
 from torch_geometric.utils import to_networkx
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def model_forward(edge_mask, model, node_idx, x, edge_index):
     out = model(x, edge_index, edge_mask)
@@ -14,21 +15,21 @@ def model_forward(edge_mask, model, node_idx, x, edge_index):
 
 def explain_sa(model, node_idx, x, edge_index, target):
     saliency = Saliency(model_forward)
-    input_mask = torch.ones(edge_index.shape[1]).requires_grad_(True)
+    input_mask = torch.ones(edge_index.shape[1]).requires_grad_(True).to(device)
     saliency_mask = saliency.attribute(input_mask, target=target,
                                        additional_forward_args=(model, node_idx, x, edge_index))
 
-    edge_mask = saliency_mask.numpy()
+    edge_mask = saliency_mask.cpu().numpy()
     return edge_mask
 
 
 def explain_ig(model, node_idx, x, edge_index, target):
     ig = IntegratedGradients(model_forward)
-    input_mask = torch.ones(edge_index.shape[1]).requires_grad_(True)
+    input_mask = torch.ones(edge_index.shape[1]).requires_grad_(True).to(device)
     ig_mask = ig.attribute(input_mask, target=target, additional_forward_args=(model, node_idx, x, edge_index),
                            internal_batch_size=edge_index.shape[1])
 
-    edge_mask = ig_mask.detach().numpy()
+    edge_mask = ig_mask.cpu().detach().numpy()
     return edge_mask
 
 
@@ -45,7 +46,7 @@ def explain_occlusion(model, node_idx, x, edge_index, target):
     edge_occlusion_mask = np.ones(data.num_edges, dtype=bool)
     edge_mask = np.zeros(data.num_edges)
     for i in range(data.num_edges):
-        u, v = list(data.edge_index[:, i].numpy())
+        u, v = list(data.edge_index[:, i].cpu().numpy())
         if (u, v) in subgraph.edges():
             edge_occlusion_mask[i] = False
             prob = model(data.x, data.edge_index[:, edge_occlusion_mask])[node_idx][target].item()
@@ -68,7 +69,7 @@ def explain_occlusion_undirected(model, node_idx, x, edge_index, target):
     edge_mask = np.zeros(data.num_edges)
     reverse_edge_map = {}
     for i in range(data.num_edges):
-        u, v = list(data.edge_index[:, i].numpy())
+        u, v = list(data.edge_index[:, i].cpu().numpy())
         reverse_edge_map[(u, v)] = i
 
     for (u, v) in subgraph.edges():
@@ -86,4 +87,4 @@ def explain_occlusion_undirected(model, node_idx, x, edge_index, target):
 def explain_gnnexplainer(model, node_idx, x, edge_index, target):
     explainer = GNNExplainer(model, epochs=200, log=False)
     node_feat_mask, edge_mask = explainer.explain_node(node_idx, x, edge_index)
-    return edge_mask.numpy()
+    return edge_mask.cpu().numpy()
