@@ -18,9 +18,7 @@ def explain_sa(model, node_idx, x, edge_index, target):
     saliency_mask = saliency.attribute(input_mask, target=target,
                                        additional_forward_args=(model, node_idx, x, edge_index))
 
-    edge_mask = np.abs(saliency_mask.numpy())
-    if edge_mask.max() > 0:
-        edge_mask = edge_mask / edge_mask.max()
+    edge_mask = saliency_mask.numpy()
     return edge_mask
 
 
@@ -30,9 +28,7 @@ def explain_ig(model, node_idx, x, edge_index, target):
     ig_mask = ig.attribute(input_mask, target=target, additional_forward_args=(model, node_idx, x, edge_index),
                            internal_batch_size=edge_index.shape[1])
 
-    edge_mask = np.abs(ig_mask.detach().numpy())
-    if edge_mask.max() > 0:
-        edge_mask = edge_mask / edge_mask.max()
+    edge_mask = ig_mask.detach().numpy()
     return edge_mask
 
 
@@ -55,7 +51,7 @@ def explain_occlusion(model, node_idx, x, edge_index, target):
             prob = model(data.x, data.edge_index[:, edge_occlusion_mask])[node_idx][target].item()
             edge_mask[i] = pred_prob - prob
             edge_occlusion_mask[i] = True
-    return edge_mask / (np.abs(edge_mask).max())
+    return edge_mask
 
 
 def explain_occlusion_undirected(model, node_idx, x, edge_index, target):
@@ -84,7 +80,7 @@ def explain_occlusion_undirected(model, node_idx, x, edge_index, target):
         prob = model(data.x, data.edge_index[:, edge_occlusion_mask])[node_idx][target].item()
         edge_mask[[i1, i2]] = pred_prob - prob
         edge_occlusion_mask[[i1, i2]] = True
-    return edge_mask / (np.abs(edge_mask).max())
+    return edge_mask
 
 
 def explain_gnnexplainer(model, node_idx, x, edge_index, target):
