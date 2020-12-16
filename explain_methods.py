@@ -45,8 +45,9 @@ def explain_occlusion(model, node_idx, x, edge_index, target):
     subgraph = g.subgraph(subgraph_nodes)
     edge_occlusion_mask = np.ones(data.num_edges, dtype=bool)
     edge_mask = np.zeros(data.num_edges)
+    edge_index_numpy = data.edge_index.cpu().numpy()
     for i in range(data.num_edges):
-        u, v = list(data.edge_index[:, i].cpu().numpy())
+        u, v = list(edge_index_numpy[:, i])
         if (u, v) in subgraph.edges():
             edge_occlusion_mask[i] = False
             prob = model(data.x, data.edge_index[:, edge_occlusion_mask])[node_idx][target].item()
@@ -68,8 +69,9 @@ def explain_occlusion_undirected(model, node_idx, x, edge_index, target):
     edge_occlusion_mask = np.ones(data.num_edges, dtype=bool)
     edge_mask = np.zeros(data.num_edges)
     reverse_edge_map = {}
+    edge_index_numpy = data.edge_index.cpu().numpy()
     for i in range(data.num_edges):
-        u, v = list(data.edge_index[:, i].cpu().numpy())
+        u, v = list(edge_index_numpy[:, i])
         reverse_edge_map[(u, v)] = i
 
     for (u, v) in subgraph.edges():
