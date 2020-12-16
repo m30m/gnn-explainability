@@ -24,9 +24,9 @@ def train(model, optimizer, train_loader):
         output = model(data.x, data.edge_index)
         loss = F.nll_loss(output, data.y)
         loss.backward()
-        loss_all += loss.item() * data.num_graphs
+        loss_all += loss.item()
         optimizer.step()
-    return loss_all / len(train_loader.dataset)
+    return loss_all / len(train_loader)
 
 
 def test(model, loader):
@@ -95,11 +95,9 @@ def main(experiment: Experiment = typer.Argument(..., help="Dataset to use"),
         split_point = int(len(dataset) * TEST_RATIO)
         test_dataset = dataset[:split_point]
         train_dataset = dataset[split_point:]
-        test_loader = DataLoader(test_dataset, batch_size=1)
-        train_loader = DataLoader(train_dataset, batch_size=1)
         data = dataset[0]
         model = Net1(data.num_node_features, data.num_classes, num_layers, concat_features, conv_type).to(device)
-        train_acc, test_acc = train_and_test(model, train_loader, test_loader)
+        train_acc, test_acc = train_and_test(model, train_dataset, test_dataset)
         model.eval()
         rolling_model_train.append(train_acc)
         rolling_model_test.append(test_acc)
