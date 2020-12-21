@@ -28,7 +28,7 @@ class Community(Benchmark):
         N = SZ * K
         P = 0.15
         Q = 0.04
-        PERTURB_COUNT = 300
+        PERTURB_COUNT = 500
         REWIRE_COUNT = 50
         mlflow.log_param('P', P)
         mlflow.log_param('Q', Q)
