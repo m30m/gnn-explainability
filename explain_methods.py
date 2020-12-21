@@ -13,7 +13,7 @@ def model_forward(edge_mask, model, node_idx, x, edge_index):
     return out[[node_idx]]
 
 
-def explain_sa(model, node_idx, x, edge_index, target):
+def explain_sa(model, node_idx, x, edge_index, target, include_edges):
     saliency = Saliency(model_forward)
     input_mask = torch.ones(edge_index.shape[1]).requires_grad_(True).to(device)
     saliency_mask = saliency.attribute(input_mask, target=target,
@@ -23,7 +23,7 @@ def explain_sa(model, node_idx, x, edge_index, target):
     return edge_mask
 
 
-def explain_ig(model, node_idx, x, edge_index, target):
+def explain_ig(model, node_idx, x, edge_index, target, include_edges):
     ig = IntegratedGradients(model_forward)
     input_mask = torch.ones(edge_index.shape[1]).requires_grad_(True).to(device)
     ig_mask = ig.attribute(input_mask, target=target, additional_forward_args=(model, node_idx, x, edge_index),
@@ -58,7 +58,7 @@ def explain_occlusion(model, node_idx, x, edge_index, target, include_edges=None
     return edge_mask
 
 
-def explain_occlusion_undirected(model, node_idx, x, edge_index, target):
+def explain_occlusion_undirected(model, node_idx, x, edge_index, target, include_edges):
     depth_limit = len(model.convs) + 1
     data = Data(x=x, edge_index=edge_index)
     pred_prob = model(data.x, data.edge_index)[node_idx][target].item()
@@ -88,7 +88,7 @@ def explain_occlusion_undirected(model, node_idx, x, edge_index, target):
     return edge_mask
 
 
-def explain_gnnexplainer(model, node_idx, x, edge_index, target):
+def explain_gnnexplainer(model, node_idx, x, edge_index, target, include_edges):
     explainer = GNNExplainer(model, epochs=200, log=False)
     node_feat_mask, edge_mask = explainer.explain_node(node_idx, x, edge_index)
     return edge_mask.cpu().numpy()
