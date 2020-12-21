@@ -3,9 +3,8 @@ from enum import Enum
 import mlflow
 import typer
 
-from benchmark import Benchmark
-from community import Community
-from infection import Infection
+from benchmarks.community import Community
+from benchmarks.infection import Infection
 
 
 class Experiment(str, Enum):

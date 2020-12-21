@@ -9,7 +9,7 @@ from torch_geometric.utils import k_hop_subgraph, from_networkx
 from tqdm import tqdm
 
 
-from benchmark import Benchmark
+from benchmarks.benchmark import Benchmark
 
 
 class Rewiring:

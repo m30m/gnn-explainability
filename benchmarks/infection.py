@@ -7,7 +7,7 @@ import torch
 from torch_geometric.utils import from_networkx
 from tqdm import tqdm as tq
 
-from benchmark import Benchmark
+from benchmarks.benchmark import Benchmark
 
 
 def infection_dataset_old(max_dist=4):  # anything equal or larger than max_dist has a far away label
