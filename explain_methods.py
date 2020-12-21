@@ -33,7 +33,7 @@ def explain_ig(model, node_idx, x, edge_index, target):
     return edge_mask
 
 
-def explain_occlusion(model, node_idx, x, edge_index, target):
+def explain_occlusion(model, node_idx, x, edge_index, target, include_edges=None):
     depth_limit = len(model.convs) + 1
     data = Data(x=x, edge_index=edge_index)
     pred_prob = model(data.x, data.edge_index)[node_idx][target].item()
@@ -47,7 +47,9 @@ def explain_occlusion(model, node_idx, x, edge_index, target):
     edge_mask = np.zeros(data.num_edges)
     edge_index_numpy = data.edge_index.cpu().numpy()
     for i in range(data.num_edges):
-        u, v = list(edge_index_numpy[:, i])
+        if include_edges is not None and not include_edges[i].item():
+            continue
+        u, v = list(data.edge_index[:, i].cpu().numpy())
         if (u, v) in subgraph.edges():
             edge_occlusion_mask[i] = False
             prob = model(data.x, data.edge_index[:, edge_occlusion_mask])[node_idx][target].item()

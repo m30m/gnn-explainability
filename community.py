@@ -131,8 +131,8 @@ def evaluate_explanation(explain_function, model, test_dataset):
                               k_hop_subgraph(node_idx, depth_limit, edge_index_rewired)[3])
 
                 final_mask = final_mask.cpu() & rewire_mask
-                attribution = explain_function(model, node_idx, dss.x, dss.edge_index, target)[final_mask]
-                attribution_rewired = explain_function(model, node_idx, dss.x, edge_index_rewired, target)[final_mask]
+                attribution = explain_function(model, node_idx, dss.x, dss.edge_index, target,final_mask)[final_mask]
+                attribution_rewired = explain_function(model, node_idx, dss.x, edge_index_rewired, target,final_mask)[final_mask]
 
                 before_afters.append((attribution.mean(), attribution_rewired.mean()))
                 if attribution.mean() > attribution_rewired.mean():
