@@ -94,7 +94,7 @@ def main(experiment: Experiment = typer.Argument(..., help="Dataset to use"),
     mlflow.log_param('test_ratio', TEST_RATIO)
     for experiment_i in tq(range(sample_count)):
         if experiment == Experiment.infection:
-            make_data = infection.make_data
+            make_data = lambda: infection.make_data(max_dist=num_layers)
         if experiment == Experiment.community:
             make_data = community.make_data
         dataset = [make_data() for i in range(NUM_GRAPHS)]
