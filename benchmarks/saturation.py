@@ -55,8 +55,10 @@ class Saturation(Benchmark):
         for i, c in enumerate(colors):
             features[i, c] = 1
 
-        for i in infected_neighbors:
+        for i in infected_nodes:
             features[i, 10] = 1
+
+        for i in infected_neighbors:
             labels[i] = labels[i] + 10
 
         data = from_networkx(g)
@@ -66,13 +68,13 @@ class Saturation(Benchmark):
 
         infection_sources = defaultdict(list)
         for idx, (u, v) in enumerate(zip(*data.edge_index.cpu().numpy())):
-            if data.x[u, -1]:
+            if features[u, -1]:
                 infection_sources[v].append(idx)
         explanations = []
         for node, sources in infection_sources.items():
             if node in infected_nodes:  # no edge explanation for these nodes
                 continue
-            if len(sources) == 1: # unique explanation
+            if len(sources) == 1:  # unique explanation
                 explanations.append((node, sources[0]))
 
         data.explanations = explanations
