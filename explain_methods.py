@@ -8,9 +8,33 @@ from torch_geometric.utils import to_networkx
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+
 def model_forward(edge_mask, model, node_idx, x, edge_index):
     out = model(x, edge_index, edge_mask)
     return out[[node_idx]]
+
+
+def model_forward_node(x, model, edge_index, node_idx):
+    out = model(x, edge_index)
+    return out[[node_idx]]
+
+
+def node_attr_to_edge(edge_index, node_mask):
+    edge_mask = np.zeros(edge_index.shape[1])
+    edge_mask += node_mask[edge_index[0].cpu().numpy()]
+    edge_mask += node_mask[edge_index[1].cpu().numpy()]
+    return edge_mask
+
+
+def explain_sa_node(model, node_idx, x, edge_index, target, include_edges=None):
+    saliency = Saliency(model_forward_node)
+    input_mask = x.clone().requires_grad_(True).to(device)
+    saliency_mask = saliency.attribute(input_mask, target=target, additional_forward_args=(model, edge_index, node_idx),
+                                       abs=False)
+
+    node_attr = saliency_mask.cpu().numpy().sum(axis=1)
+    edge_mask = node_attr_to_edge(edge_index, node_attr)
+    return edge_mask
 
 
 def explain_sa(model, node_idx, x, edge_index, target, include_edges=None):
@@ -20,6 +44,17 @@ def explain_sa(model, node_idx, x, edge_index, target, include_edges=None):
                                        additional_forward_args=(model, node_idx, x, edge_index))
 
     edge_mask = saliency_mask.cpu().numpy()
+    return edge_mask
+
+
+def explain_ig_node(model, node_idx, x, edge_index, target, include_edges=None):
+    ig = IntegratedGradients(model_forward_node)
+    input_mask = x.clone().requires_grad_(True).to(device)
+    ig_mask = ig.attribute(input_mask, target=target, additional_forward_args=(model, edge_index, node_idx),
+                           internal_batch_size=edge_index.shape[1])
+
+    node_attr = ig_mask.cpu().numpy().sum(axis=1)
+    edge_mask = node_attr_to_edge(edge_index, node_attr)
     return edge_mask
 
 

@@ -20,7 +20,7 @@ class Rewiring:
 class Community(Benchmark):
     NUM_GRAPHS = 100
     TEST_RATIO = 0.1
-    METHODS = ['sa', 'ig', 'occlusion', 'gnnexplainer']
+    METHODS = ['sa_node', 'ig_node', 'sa', 'ig', 'occlusion', 'gnnexplainer']
 
     def create_dataset(self):
         K = 10
