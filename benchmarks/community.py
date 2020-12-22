@@ -100,7 +100,6 @@ class Community(Benchmark):
 
     def evaluate_explanation(self, explain_function, model, test_dataset):
         accs = []
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         for dss in test_dataset:
             bads = 0
             before_afters = []
@@ -108,7 +107,7 @@ class Community(Benchmark):
             tests = 0
             pbar = tqdm(range(1000))
             model_cache = model(dss.x, dss.edge_index)
-            edge_index_rewired = dss.edge_index.clone().to(device)
+            edge_index_rewired = dss.edge_index.clone().to(self.device)
             rewire_mask = torch.zeros(dss.num_edges, dtype=bool)
             for node_idx in pbar:
                 prob, label = model_cache[[node_idx]].softmax(dim=1).max(dim=1)

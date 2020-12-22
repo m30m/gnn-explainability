@@ -5,11 +5,13 @@ import typer
 
 from benchmarks.community import Community
 from benchmarks.infection import Infection
+from benchmarks.saturation import Saturation
 
 
 class Experiment(str, Enum):
     infection = "infection"
     community = "community"
+    saturation = "saturation"
 
 
 def main(experiment: Experiment = typer.Argument(..., help="Dataset to use"),
@@ -21,10 +23,12 @@ def main(experiment: Experiment = typer.Argument(..., help="Dataset to use"),
                                        help="Convolution class. Can be GCNConv or GraphConv"),
          ):
     mlflow.set_experiment(experiment.value)
-    if experiment == Experiment.infection:
-        benchmark_class = Infection
-    if experiment == Experiment.community:
-        benchmark_class = Community
+    class_map = {
+        Experiment.infection: Infection,
+        Experiment.community: Community,
+        Experiment.saturation: Saturation,
+    }
+    benchmark_class = class_map[experiment]
     benchmark = benchmark_class(sample_count, num_layers, concat_features, conv_type)
     benchmark.run()
 

@@ -35,6 +35,17 @@ class Benchmark(object):
     def evaluate_explanation(self, explain_function, model, test_dataset):
         raise NotImplementedError
 
+    @staticmethod
+    def aggregate_directions(edge_mask, edge_index):
+        edge_values = defaultdict(float)
+        for x in range(len(edge_mask)):
+            u, v = edge_index[:, x]
+            u, v = u.item(), v.item()
+            if u > v:
+                u, v = v, u
+            edge_values[(u, v)] += edge_mask[x]
+        return edge_values
+
     def train(self, model, optimizer, train_loader):
         model.train()
         loss_all = 0

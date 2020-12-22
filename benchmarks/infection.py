@@ -118,17 +118,6 @@ class Infection(Benchmark):
                 correct_count += 1
         return correct_count / len(correct_edges)
 
-    @staticmethod
-    def aggregate_directions(edge_mask, edge_index):
-        edge_values = defaultdict(float)
-        for x in range(len(edge_mask)):
-            u, v = edge_index[:, x]
-            u, v = u.item(), v.item()
-            if u > v:
-                u, v = v, u
-            edge_values[(u, v)] += edge_mask[x]
-        return edge_values
-
     def create_dataset(self):
         max_dist = self.num_layers  # anything larger than max_dist has a far away label
         g = nx.erdos_renyi_graph(1000, 0.004)
