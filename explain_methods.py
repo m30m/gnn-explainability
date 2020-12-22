@@ -30,6 +30,20 @@ def explain_random(model, node_idx, x, edge_index, target, include_edges=None):
     return np.random.uniform(size=edge_index.shape[1])
 
 
+def explain_distance(model, node_idx, x, edge_index, target, include_edges=None):
+    data = Data(x=x, edge_index=edge_index)
+    g = to_networkx(data)
+    length = nx.shortest_path_length(g, source=node_idx)
+
+    def get_attr(node):
+        if node in length:
+            return 1 / (length[node] + 1)
+        return 0
+
+    edge_sources = edge_index[0].cpu().numpy()
+    return np.array([get_attr(node) for node in edge_sources])
+
+
 def explain_sa_node(model, node_idx, x, edge_index, target, include_edges=None):
     saliency = Saliency(model_forward_node)
     input_mask = x.clone().requires_grad_(True).to(device)
