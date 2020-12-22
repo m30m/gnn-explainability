@@ -26,6 +26,10 @@ def node_attr_to_edge(edge_index, node_mask):
     return edge_mask
 
 
+def explain_random(model, node_idx, x, edge_index, target, include_edges=None):
+    return np.random.uniform(size=edge_index.shape[1])
+
+
 def explain_sa_node(model, node_idx, x, edge_index, target, include_edges=None):
     saliency = Saliency(model_forward_node)
     input_mask = x.clone().requires_grad_(True).to(device)
