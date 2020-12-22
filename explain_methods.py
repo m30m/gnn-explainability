@@ -55,9 +55,9 @@ def explain_ig_node(model, node_idx, x, edge_index, target, include_edges=None):
     ig = IntegratedGradients(model_forward_node)
     input_mask = x.clone().requires_grad_(True).to(device)
     ig_mask = ig.attribute(input_mask, target=target, additional_forward_args=(model, edge_index, node_idx),
-                           internal_batch_size=edge_index.shape[1])
+                           internal_batch_size=input_mask.shape[0])
 
-    node_attr = ig_mask.cpu().numpy().sum(axis=1)
+    node_attr = ig_mask.cpu().detach().numpy().sum(axis=1)
     edge_mask = node_attr_to_edge(edge_index, node_attr)
     return edge_mask
 
