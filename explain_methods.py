@@ -106,14 +106,14 @@ def explain_by_last_layer(cls, model, node_idx, x, edge_index, target, include_e
     return edge_mask
 
 
-def explain_gradXact(**kwargs):
+def explain_gradXact(model, node_idx, x, edge_index, target, include_edges=None):
     # Captum default implementation of LayerGradCam does not average over nodes for different channels because of
     # different assumptions on tensor shapes
-    return explain_by_last_layer(LayerGradCam, **kwargs)
+    return explain_by_last_layer(LayerGradCam, model, node_idx, x, edge_index, target, include_edges)
 
 
-def explain_gradcam(**kwargs):
-    return explain_by_last_layer(GraphLayerGradCam, **kwargs)
+def explain_gradcam(model, node_idx, x, edge_index, target, include_edges=None):
+    return explain_by_last_layer(GraphLayerGradCam, model, node_idx, x, edge_index, target, include_edges)
 
 
 def explain_distance(model, node_idx, x, edge_index, target, include_edges=None):
