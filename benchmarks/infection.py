@@ -94,6 +94,7 @@ def infection_dataset_old(max_dist=4):  # anything equal or larger than max_dist
 class Infection(Benchmark):
     NUM_GRAPHS = 10
     TEST_RATIO = 0.4
+    METHODS = Benchmark.METHODS + ['occlusion_undirected']
 
     @staticmethod
     def get_accuracy(correct_ids, edge_mask, edge_index):
