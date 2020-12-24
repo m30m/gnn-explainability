@@ -124,6 +124,7 @@ class Benchmark(object):
                 rolling_explain[explain_name].append(np.mean(accs))
                 metrics = {
                     f'explain_{explain_name}_acc': np.mean(accs),
+                    f'explain_{explain_name}_acc_std': np.std(accs),
                     f'rolling_{explain_name}_avg': np.mean(rolling_explain[explain_name]),
                     f'rolling_{explain_name}_std': np.std(rolling_explain[explain_name]),
                 }

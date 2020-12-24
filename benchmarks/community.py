@@ -18,7 +18,7 @@ class Rewiring:
 
 
 class Community(Benchmark):
-    NUM_GRAPHS = 100
+    NUM_GRAPHS = 50
     TEST_RATIO = 0.1
 
     def create_dataset(self):
@@ -105,7 +105,9 @@ class Community(Benchmark):
             before_afters = []
             depth_limit = len(model.convs)
             tests = 0
-            pbar = tqdm(range(1000))
+            EXPLANATION_SAMPLE_PER_GRAPH = 200
+            mlflow.log_param('EXPLANATION_SAMPLE_PER_GRAPH', EXPLANATION_SAMPLE_PER_GRAPH)
+            pbar = tqdm(random.sample(list(range(1000)), EXPLANATION_SAMPLE_PER_GRAPH))
             model_cache = model(dss.x, dss.edge_index)
             edge_index_rewired = dss.edge_index.clone().to(self.device)
             rewire_mask = torch.zeros(dss.num_edges, dtype=bool)
