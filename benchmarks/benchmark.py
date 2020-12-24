@@ -11,7 +11,8 @@ from models_node import Net1
 class Benchmark(object):
     NUM_GRAPHS = 2
     TEST_RATIO = 0.5
-    METHODS = ['distance', 'random', 'sa_node', 'ig_node', 'sa', 'ig', 'occlusion_undirected', 'gnnexplainer']
+    METHODS = ['distance', 'gradcam', 'gradXact', 'random', 'sa_node', 'ig_node', 'sa', 'ig',
+               'occlusion_undirected', 'gnnexplainer']
 
     def __init__(self, sample_count, num_layers, concat_features, conv_type):
         arguments = {
