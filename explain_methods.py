@@ -101,7 +101,7 @@ def explain_by_last_layer(cls, model, node_idx, x, edge_index, target, include_e
     # different assumptions on tensor shapes
     layer_gc = cls(model_forward_node, last_layer)
     node_attr = layer_gc.attribute(input_mask, target=target, additional_forward_args=(model, edge_index, node_idx))
-    node_attr = node_attr.cpu().detach().numpy()
+    node_attr = node_attr.cpu().detach().numpy().ravel()
     edge_mask = node_attr_to_edge(edge_index, node_attr)
     return edge_mask
 
