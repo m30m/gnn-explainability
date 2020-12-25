@@ -220,6 +220,8 @@ def explain_occlusion_undirected(model, node_idx, x, edge_index, target, include
             continue
         i1 = reverse_edge_map[(u, v)]
         i2 = reverse_edge_map[(v, u)]
+        if include_edges is not None and not include_edges[i1].item() and not include_edges[i2].item():
+            continue
         edge_occlusion_mask[[i1, i2]] = False
         prob = model(data.x, data.edge_index[:, edge_occlusion_mask])[node_idx][target].item()
         edge_mask[[i1, i2]] = pred_prob - prob
