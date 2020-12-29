@@ -1,3 +1,4 @@
+import time
 from collections import defaultdict
 import random
 
@@ -40,7 +41,7 @@ class Benchmark(object):
         raise NotImplementedError
 
     def subsample_nodes(self, explain_function, nodes):
-        if explain_function != explain_pgmexplainer:
+        if explain_function.explain_function != explain_pgmexplainer:
             return nodes
         return random.sample(nodes, self.PGMEXPLAINER_SUBSAMPLE_PER_GRAPH)
 
@@ -127,7 +128,18 @@ class Benchmark(object):
 
             for explain_name in self.METHODS:
                 explain_function = eval('explain_' + explain_name)
-                accs = self.evaluate_explanation(explain_function, model, test_dataset)
+                duration_samples = []
+
+                def time_wrapper(*args, **kwargs):
+                    start_time = time.time()
+                    result = explain_function(*args, **kwargs)
+                    end_time = time.time()
+                    duration_seconds = end_time - start_time
+                    duration_samples.append(duration_seconds)
+                    return result
+
+                time_wrapper.explain_function = explain_function
+                accs = self.evaluate_explanation(time_wrapper, model, test_dataset)
                 print(explain_name, np.mean(accs), np.std(accs))
                 rolling_explain[explain_name].append(np.mean(accs))
                 metrics = {
@@ -135,5 +147,7 @@ class Benchmark(object):
                     f'explain_{explain_name}_acc_std': np.std(accs),
                     f'rolling_{explain_name}_avg': np.mean(rolling_explain[explain_name]),
                     f'rolling_{explain_name}_std': np.std(rolling_explain[explain_name]),
+                    f'time_{explain_name}_s_avg': np.mean(duration_samples),
+                    f'time_{explain_name}_s_std': np.std(duration_samples),
                 }
                 mlflow.log_metrics(metrics, step=experiment_i)

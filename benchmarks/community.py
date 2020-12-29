@@ -105,7 +105,7 @@ class Community(Benchmark):
         return data
 
     def subsample_nodes(self, explain_function, nodes):
-        if explain_function != explain_pgmexplainer:
+        if explain_function.explain_function != explain_pgmexplainer:
             return random.sample(nodes, self.EXPLANATION_SAMPLE_PER_GRAPH)
         return random.sample(nodes, self.PGMEXPLAINER_SUBSAMPLE_PER_GRAPH)
 
