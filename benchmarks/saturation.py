@@ -69,7 +69,7 @@ class Saturation(Benchmark):
         infection_sources = defaultdict(list)
         for idx, (u, v) in enumerate(zip(*data.edge_index.cpu().numpy())):
             if features[u, -1]:
-                infection_sources[v].append(idx)
+                infection_sources[int(v)].append(idx)
         explanations = []
         for node, sources in infection_sources.items():
             if node in infected_nodes:  # no edge explanation for these nodes

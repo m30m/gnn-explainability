@@ -5,6 +5,7 @@ from pgmpy.estimators.CITests import chi_square
 from scipy.special import softmax
 from torch_geometric.utils import k_hop_subgraph
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class Node_Explainer:
     def __init__(
@@ -47,12 +48,12 @@ class Node_Explainer:
 
     def explain(self, node_idx, target, num_samples=100, top_node=None, p_threshold=0.05, pred_threshold=0.1):
         neighbors, _, _, _ = k_hop_subgraph(node_idx, self.num_layers, self.edge_index)
-        neighbors = neighbors.detach().numpy()
+        neighbors = neighbors.cpu().detach().numpy()
 
         if (node_idx not in neighbors):
             neighbors = np.append(neighbors, node_idx)
 
-        pred_torch = self.model(self.X, self.edge_index)
+        pred_torch = self.model(self.X, self.edge_index).cpu()
         soft_pred = np.asarray([softmax(np.asarray(pred_torch[node_].data)) for node_ in range(self.X.shape[0])])
 
         pred_node = np.asarray(pred_torch[node_idx].data)
@@ -64,7 +65,7 @@ class Node_Explainer:
 
         for iteration in range(num_samples):
 
-            X_perturb = self.X.detach().numpy()
+            X_perturb = self.X.cpu().detach().numpy()
             sample = []
             for node in neighbors:
                 seed = np.random.randint(2)
@@ -75,8 +76,8 @@ class Node_Explainer:
                     latent = 0
                 sample.append(latent)
 
-            X_perturb_torch = torch.tensor(X_perturb, dtype=torch.float)
-            pred_perturb_torch = self.model(X_perturb_torch, self.edge_index)
+            X_perturb_torch = torch.tensor(X_perturb, dtype=torch.float).to(device)
+            pred_perturb_torch = self.model(X_perturb_torch, self.edge_index).cpu()
             soft_pred_perturb = np.asarray(
                 [softmax(np.asarray(pred_perturb_torch[node_].data)) for node_ in range(self.X.shape[0])])
 
