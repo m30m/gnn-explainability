@@ -161,7 +161,9 @@ class Infection(Benchmark):
         misclassify_count = 0
         for data in test_dataset:
             _, pred = model(data.x, data.edge_index).max(dim=1)
-            pbar = tq(list(zip(data.unique_solution_nodes, data.unique_solution_explanations)), disable=False)
+            nodes_to_test = list(zip(data.unique_solution_nodes, data.unique_solution_explanations))
+            nodes_to_test = self.subsample_nodes(explain_function, nodes_to_test)
+            pbar = tq(nodes_to_test, disable=False)
             for node_idx, correct_ids in pbar:
                 if len(correct_ids) == 0:
                     continue

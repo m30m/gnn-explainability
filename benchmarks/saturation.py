@@ -85,7 +85,9 @@ class Saturation(Benchmark):
         misclassify_count = 0
         for data in test_dataset:
             _, pred = model(data.x, data.edge_index).max(dim=1)
-            pbar = tq(data.explanations)
+            nodes_to_test = data.explanations
+            nodes_to_test = self.subsample_nodes(explain_function, nodes_to_test)
+            pbar = tq(nodes_to_test)
             for node_idx, correct_edge_id in pbar:
                 if pred[node_idx] != data.y[node_idx]:
                     misclassify_count += 1

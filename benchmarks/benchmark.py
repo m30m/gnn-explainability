@@ -1,4 +1,5 @@
 from collections import defaultdict
+import random
 
 import mlflow
 import torch.nn.functional as F
@@ -11,7 +12,9 @@ from models_node import Net1
 class Benchmark(object):
     NUM_GRAPHS = 2
     TEST_RATIO = 0.5
-    METHODS = ['occlusion_undirected', 'distance', 'gradcam', 'gradXact', 'random', 'sa_node', 'ig_node', 'sa', 'ig', 'gnnexplainer']
+    PGMEXPLAINER_SUBSAMPLE_PER_GRAPH = 20
+    METHODS = ['pgmexplainer', 'occlusion_undirected', 'distance', 'gradcam', 'gradXact', 'random', 'sa_node',
+               'ig_node', 'sa', 'ig', 'gnnexplainer']
 
     def __init__(self, sample_count, num_layers, concat_features, conv_type):
         arguments = {
@@ -27,6 +30,7 @@ class Benchmark(object):
         self.concat_features = concat_features
         self.conv_type = conv_type
         mlflow.log_params(arguments)
+        mlflow.log_param('PGMEXPLAINER_SUBSAMPLE_PER_GRAPH', self.PGMEXPLAINER_SUBSAMPLE_PER_GRAPH)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     def create_dataset(self):
@@ -34,6 +38,11 @@ class Benchmark(object):
 
     def evaluate_explanation(self, explain_function, model, test_dataset):
         raise NotImplementedError
+
+    def subsample_nodes(self, explain_function, nodes):
+        if explain_function != explain_pgmexplainer:
+            return nodes
+        return random.sample(nodes, self.PGMEXPLAINER_SUBSAMPLE_PER_GRAPH)
 
     @staticmethod
     def aggregate_directions(edge_mask, edge_index):

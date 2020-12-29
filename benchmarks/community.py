@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 
 from benchmarks.benchmark import Benchmark
+from explain_methods import explain_pgmexplainer
 
 
 class Rewiring:
@@ -20,6 +21,11 @@ class Rewiring:
 class Community(Benchmark):
     NUM_GRAPHS = 50
     TEST_RATIO = 0.1
+    EXPLANATION_SAMPLE_PER_GRAPH = 200
+
+    def __init__(self, sample_count, num_layers, concat_features, conv_type):
+        super().__init__(sample_count, num_layers, concat_features, conv_type)
+        mlflow.log_param('EXPLANATION_SAMPLE_PER_GRAPH', self.EXPLANATION_SAMPLE_PER_GRAPH)
 
     def create_dataset(self):
         K = 10
@@ -98,6 +104,11 @@ class Community(Benchmark):
 
         return data
 
+    def subsample_nodes(self, explain_function, nodes):
+        if explain_function != explain_pgmexplainer:
+            return random.sample(nodes, self.EXPLANATION_SAMPLE_PER_GRAPH)
+        return random.sample(nodes, self.PGMEXPLAINER_SUBSAMPLE_PER_GRAPH)
+
     def evaluate_explanation(self, explain_function, model, test_dataset):
         accs = []
         for dss in test_dataset:
@@ -105,9 +116,9 @@ class Community(Benchmark):
             before_afters = []
             depth_limit = len(model.convs)
             tests = 0
-            EXPLANATION_SAMPLE_PER_GRAPH = 200
-            mlflow.log_param('EXPLANATION_SAMPLE_PER_GRAPH', EXPLANATION_SAMPLE_PER_GRAPH)
-            pbar = tqdm(random.sample(list(range(1000)), EXPLANATION_SAMPLE_PER_GRAPH))
+            nodes_to_test = list(range(1000))
+            nodes_to_test = self.subsample_nodes(explain_function, nodes_to_test)
+            pbar = tqdm(nodes_to_test)
             model_cache = model(dss.x, dss.edge_index)
             edge_index_rewired = dss.edge_index.clone().to(self.device)
             rewire_mask = torch.zeros(dss.num_edges, dtype=bool)
