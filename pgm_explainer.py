@@ -98,31 +98,14 @@ class Node_Explainer:
                 [Samples[s, i] * 10 + Pred_Samples[s, i] + 1 for i in range(Samples.shape[1])])
 
         data = pd.DataFrame(Combine_Samples)
-        ind_sub_to_ori = dict(zip(list(data.columns), neighbors))
         data = data.rename(columns={0: "A", 1: "B"})  # Trick to use chi_square test on first two data columns
         ind_ori_to_sub = dict(zip(neighbors, list(data.columns)))
 
         p_values = []
-        dependent_neighbors = []
-        dependent_neighbors_p_values = []
         for node in neighbors:
             chi2, p = chi_square(ind_ori_to_sub[node], ind_ori_to_sub[node_idx], [], data)
             p_values.append(p)
-            if p < p_threshold:
-                dependent_neighbors.append(node)
-                dependent_neighbors_p_values.append(p)
 
         pgm_stats = dict(zip(neighbors, p_values))
 
-        pgm_nodes = []
-        if top_node == None:
-            pgm_nodes = dependent_neighbors
-        else:
-            top_p = np.min((top_node, len(neighbors) - 1))
-            ind_top_p = np.argpartition(p_values, top_p)[0:top_p]
-            pgm_nodes = [ind_sub_to_ori[node] for node in ind_top_p]
-
-        data = data.rename(columns={"A": 0, "B": 1})
-        data = data.rename(columns=ind_sub_to_ori)
-
-        return pgm_nodes, data, pgm_stats
+        return pgm_stats

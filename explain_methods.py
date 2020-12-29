@@ -241,7 +241,7 @@ def explain_pgmexplainer(model, node_idx, x, edge_index, target, include_edges=N
     explainer = Node_Explainer(model, edge_index, x, len(model.convs), print_result=0)
     explanation = explainer.explain(node_idx,target)
     node_attr = np.zeros(x.shape[0])
-    for node, p_value in explanation[2].items():
+    for node, p_value in explanation.items():
         node_attr[node] = 1 - p_value
     edge_mask = node_attr_to_edge(edge_index, node_attr)
     return edge_mask
