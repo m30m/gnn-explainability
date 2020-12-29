@@ -132,6 +132,18 @@ def explain_distance(model, node_idx, x, edge_index, target, include_edges=None)
     return np.array([get_attr(node) for node in edge_sources])
 
 
+def explain_pagerank(model, node_idx, x, edge_index, target, include_edges=None):
+    data = Data(x=x, edge_index=edge_index)
+    g = to_networkx(data)
+    pagerank = nx.pagerank(g, personalization={node_idx: 1})
+
+    node_attr = np.zeros(x.shape[0])
+    for node, value in pagerank.items():
+        node_attr[node] = value
+    edge_mask = node_attr_to_edge(edge_index, node_attr)
+    return edge_mask
+
+
 def explain_sa_node(model, node_idx, x, edge_index, target, include_edges=None):
     saliency = Saliency(model_forward_node)
     input_mask = x.clone().requires_grad_(True).to(device)
