@@ -1,3 +1,6 @@
+import json
+import os
+import tempfile
 import time
 from collections import defaultdict
 import random
@@ -100,9 +103,7 @@ class Benchmark(object):
 
     def run(self):
         print(f"Using device {self.device}")
-        rolling_explain = defaultdict(list)
-        rolling_model_train = []
-        rolling_model_test = []
+        all_explanations = defaultdict(list)
         for experiment_i in tq(range(self.sample_count)):
             dataset = [self.create_dataset() for i in range(self.NUM_GRAPHS)]
             split_point = int(len(dataset) * self.TEST_RATIO)
@@ -114,15 +115,9 @@ class Benchmark(object):
                 self.device)
             train_acc, test_acc = self.train_and_test(model, train_dataset, test_dataset)
             model.eval()
-            rolling_model_train.append(train_acc)
-            rolling_model_test.append(test_acc)
             metrics = {
                 'train_acc': train_acc,
                 'test_acc': test_acc,
-                'rolling_model_train_avg': np.mean(rolling_model_train),
-                'rolling_model_train_std': np.std(rolling_model_train),
-                'rolling_model_test_avg': np.mean(rolling_model_test),
-                'rolling_model_test_std': np.std(rolling_model_test),
             }
             mlflow.log_metrics(metrics, step=experiment_i)
 
@@ -141,13 +136,15 @@ class Benchmark(object):
                 time_wrapper.explain_function = explain_function
                 accs = self.evaluate_explanation(time_wrapper, model, test_dataset)
                 print(explain_name, np.mean(accs), np.std(accs))
-                rolling_explain[explain_name].append(np.mean(accs))
+                all_explanations[explain_name].append(list(accs))
                 metrics = {
                     f'explain_{explain_name}_acc': np.mean(accs),
                     f'explain_{explain_name}_acc_std': np.std(accs),
-                    f'rolling_{explain_name}_avg': np.mean(rolling_explain[explain_name]),
-                    f'rolling_{explain_name}_std': np.std(rolling_explain[explain_name]),
                     f'time_{explain_name}_s_avg': np.mean(duration_samples),
                     f'time_{explain_name}_s_std': np.std(duration_samples),
                 }
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    file_path = os.path.join(tmpdir, 'accuracies.json')
+                    json.dump(all_explanations, open(file_path, 'w'), indent=2)
+                    mlflow.log_artifact(file_path)
                 mlflow.log_metrics(metrics, step=experiment_i)
