@@ -78,27 +78,46 @@ class Community(Benchmark):
                 bad_edges[labels[u]].append((u, v))
 
         node_edits = {}
+        edit_type = {}
         for i in g.nodes():
-            rewires = random.sample(bad_edges[labels[i]], REWIRE_COUNT)
-            nodes_with_same_label = [x for x in g.nodes() if labels[x] == labels[i]]
-            new_edges = set()
+            # implement the bad edit logic
+            edit_type[i] = random.choice(['good', 'bad'])
             edits = {}
-            for u, v in rewires:
-                assert labels[u] == labels[i]
-                v2 = random.choice(nodes_with_same_label)
-                while v2 == u or (u, v2) in edge_to_id or (u, v2) in new_edges:
+            nodes_with_same_label = [x for x in g.nodes() if labels[x] == labels[i]]
+            if edit_type[i] == 'good':
+                rewires = random.sample(bad_edges[labels[i]], REWIRE_COUNT)
+                new_edges = set()
+                for u, v in rewires:
+                    assert labels[u] == labels[i]
                     v2 = random.choice(nodes_with_same_label)
+                    while v2 == u or (u, v2) in edge_to_id or (u, v2) in new_edges:
+                        v2 = random.choice(nodes_with_same_label)
 
-                edits[edge_to_id[(u, v)]] = (u, v2)
-                edits[edge_to_id[(v, u)]] = (v2, u)
-                new_edges.add((u, v2))
-            assert len(edits) == 100
+                    edits[edge_to_id[(u, v)]] = (u, v2)
+                    edits[edge_to_id[(v, u)]] = (v2, u)
+                    new_edges.add((u, v2))
+            else:
+                new_edges = set()
+                while len(edits) < REWIRE_COUNT * 2:
+                    eid = random.randint(1, data.num_edges) - 1
+                    u, v = id_to_edge[eid]
+                    if labels[u] == labels[i] or labels[v] == labels[i]:
+                        continue
+                    v2 = random.choice(nodes_with_same_label)
+                    while (u, v2) in edge_to_id or (u, v2) in new_edges:
+                        v2 = random.choice(nodes_with_same_label)
+                    edits[edge_to_id[(u, v)]] = (u, v2)
+                    edits[edge_to_id[(v, u)]] = (v2, u)
+                    new_edges.add((u, v2))
+
+            assert len(edits) == REWIRE_COUNT * 2
             node_edits[i] = edits
 
         rewiring = Rewiring()
         rewiring.id_to_edge = id_to_edge
         rewiring.edge_to_id = edge_to_id
         rewiring.node_edits = node_edits
+        rewiring.edit_type = edit_type
         data.rewiring = rewiring
         data.num_classes = len(set(labels))
 
@@ -130,7 +149,14 @@ class Community(Benchmark):
 
                 prob_rewired, label_rewired = model(dss.x, edge_index_rewired)[[node_idx]].softmax(dim=1).max(dim=1)
                 target = dss.y[node_idx].item()
-                if label_rewired.item() == target and prob_rewired.item() > prob.item():
+                should_test_explanation = False
+                edit_type = dss.rewiring.edit_type[node_idx]
+                if edit_type == 'good' and label_rewired.item() == target and prob_rewired.item() > prob.item():
+                    should_test_explanation = True
+                if edit_type == 'bad' and prob_rewired.item() < prob.item():
+                    should_test_explanation = True
+                # print(edit_type, 'should_test_explanation', should_test_explanation)
+                if should_test_explanation:
                     final_mask = (k_hop_subgraph(node_idx, depth_limit, dss.edge_index)[3] &
                                   k_hop_subgraph(node_idx, depth_limit, edge_index_rewired)[3])
 
@@ -141,9 +167,10 @@ class Community(Benchmark):
                         explain_function(model, node_idx, dss.x, edge_index_rewired, target, final_mask)[final_mask]
 
                     before_afters.append((attribution.mean(), attribution_rewired.mean()))
-                    if attribution.mean() > attribution_rewired.mean():
+                    if edit_type == 'good' and attribution.mean() > attribution_rewired.mean():
                         bads += 1
-                        # print(node_idx)
+                    if edit_type == 'bad' and attribution.mean() < attribution_rewired.mean():
+                        bads += 1
 
                     tests += 1
                     pbar.set_postfix(bads=bads / (tests), tests=tests)
