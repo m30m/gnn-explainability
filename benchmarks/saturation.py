@@ -14,6 +14,7 @@ from benchmarks.benchmark import Benchmark
 class Saturation(Benchmark):
     NUM_GRAPHS = 100
     TEST_RATIO = 0.1
+    METHODS = [method for method in Benchmark.METHODS if 'occlusion' not in method]
 
     def create_dataset(self):
         K = 10
