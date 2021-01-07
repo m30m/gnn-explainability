@@ -89,6 +89,13 @@ class Saturation(Benchmark):
             nodes_to_test = data.explanations
             nodes_to_test = self.subsample_nodes(explain_function, nodes_to_test)
             pbar = tq(nodes_to_test)
+            infection_accuracy = 0
+            for node_idx in range(len(data.x)):
+                if pred[node_idx].item() // 10 == data.y[node_idx].item() // 10:
+                    infection_accuracy += 1
+            infection_accuracy /= len(data.x)
+            mlflow.log_metric('infection_accuracy', infection_accuracy)
+            print('infection_accuracy', infection_accuracy)
             for node_idx, correct_edge_id in pbar:
                 if pred[node_idx] != data.y[node_idx]:
                     misclassify_count += 1
