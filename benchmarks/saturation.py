@@ -70,7 +70,7 @@ class Saturation(Benchmark):
         infection_sources = defaultdict(list)
         for idx, (u, v) in enumerate(zip(*data.edge_index.cpu().numpy())):
             if features[u, -1]:
-                infection_sources[int(v)].append(idx)
+                infection_sources[int(v)].append(int(u))
         explanations = []
         for node, sources in infection_sources.items():
             if node in infected_nodes:  # no edge explanation for these nodes
@@ -96,12 +96,16 @@ class Saturation(Benchmark):
             infection_accuracy /= len(data.x)
             mlflow.log_metric('infection_accuracy', infection_accuracy)
             print('infection_accuracy', infection_accuracy)
-            for node_idx, correct_edge_id in pbar:
+            for node_idx, source_node in pbar:
                 if pred[node_idx] != data.y[node_idx]:
                     misclassify_count += 1
                     continue
                 edge_mask = explain_function(model, node_idx, data.x, data.edge_index, data.y[node_idx].item())
-                edge_pos = list(np.argsort(-edge_mask)).index(correct_edge_id)
+                edge_values = self.aggregate_directions(edge_mask, data.edge_index)
+                sorted_edges = sorted(list(edge_values.keys()), key=lambda x: edge_values[x], reverse=True)
+                if node_idx > source_node:
+                    source_node, node_idx = node_idx, source_node
+                edge_pos = sorted_edges.index((node_idx, source_node))
                 accs.append(edge_pos)
                 pbar.set_postfix(acc=np.mean(accs))
         return accs
