@@ -192,7 +192,7 @@ def explain_occlusion(model, node_idx, x, edge_index, target, include_edges=None
     pred_prob = model(data.x, data.edge_index)[node_idx][target].item()
     g = to_networkx(data)
     subgraph_nodes = []
-    for k, v in nx.shortest_path_length(g, node_idx).items():
+    for k, v in nx.shortest_path_length(g, target=node_idx).items():
         if v < depth_limit:
             subgraph_nodes.append(k)
     subgraph = g.subgraph(subgraph_nodes)
