@@ -1,6 +1,7 @@
 import random
 from collections import defaultdict
 
+import mlflow
 import networkx as nx
 import numpy as np
 import torch
@@ -98,7 +99,7 @@ class Infection(Benchmark):
     @staticmethod
     def get_accuracy(correct_ids, edge_mask, edge_index):
         correct_count = 0
-        correct_edges = list(zip(correct_ids[1:], correct_ids))
+        correct_edges = list(zip(correct_ids, correct_ids[1:]))
 
         for x in np.argsort(-edge_mask)[:len(correct_ids)]:
             u, v = edge_index[:, x]
@@ -110,7 +111,7 @@ class Infection(Benchmark):
     @staticmethod
     def get_accuracy_undirected(correct_ids, edge_values):
         correct_count = 0
-        correct_edges = list(zip(correct_ids[1:], correct_ids))
+        correct_edges = list(zip(correct_ids, correct_ids[1:]))
 
         top_edges = list(sorted([(-value, edge) for edge, value in edge_values.items()]))[:len(correct_ids)]
         for _, (u, v) in top_edges:
@@ -120,9 +121,9 @@ class Infection(Benchmark):
 
     def create_dataset(self):
         max_dist = self.num_layers  # anything larger than max_dist has a far away label
-        g = nx.erdos_renyi_graph(1000, 0.004)
+        g = nx.erdos_renyi_graph(1000, 0.004, directed=True)
         N = len(g.nodes())
-        infected_nodes = random.sample(g.nodes(), 20)
+        infected_nodes = random.sample(g.nodes(), 50)
         g.add_node('X')  # dummy node for easier computation, will be removed in the end
         for u in infected_nodes:
             g.add_edge('X', u)
@@ -134,16 +135,18 @@ class Infection(Benchmark):
         for i in range(N):
             if i == 'X':
                 continue
-            length = shortest_path_length.get(i, 100) - 1
+            length = shortest_path_length.get(i, 100) - 1  # 100 is inf distance
             labels.append(min(max_dist + 1, length))
             col = 0 if i in infected_nodes else 1
             features[i, col] = 1
             if 0 < length <= max_dist:
-                path_iterator = iter(nx.all_shortest_paths(g, i, 'X'))
+                path_iterator = iter(nx.all_shortest_paths(g, 'X', i))
                 unique_shortest_path = next(path_iterator)
                 if next(path_iterator, 0) != 0:
                     continue
-                unique_shortest_path.pop()  # pop 'X' node
+                unique_shortest_path.pop(0)  # pop 'X' node
+                if len(unique_shortest_path) == 0:
+                    continue
                 unique_solution_explanations.append(unique_shortest_path)
                 unique_solution_nodes.append(i)
         g.remove_node('X')
@@ -164,15 +167,15 @@ class Infection(Benchmark):
             nodes_to_test = list(zip(data.unique_solution_nodes, data.unique_solution_explanations))
             nodes_to_test = self.subsample_nodes(explain_function, nodes_to_test)
             pbar = tq(nodes_to_test, disable=False)
+            tested_nodes = 0
             for node_idx, correct_ids in pbar:
-                if len(correct_ids) == 0:
-                    continue
                 if pred[node_idx] != data.y[node_idx]:
                     misclassify_count += 1
                     continue
+                tested_nodes += 1
                 edge_mask = explain_function(model, node_idx, data.x, data.edge_index, data.y[node_idx].item())
-                edge_values = self.aggregate_directions(edge_mask, data.edge_index)
-                explain_acc = self.get_accuracy_undirected(correct_ids, edge_values)
+                explain_acc = self.get_accuracy(correct_ids, edge_mask, data.edge_index)
                 accs.append(explain_acc)
                 pbar.set_postfix(acc=np.mean(accs))
+            mlflow.log_metric('tested_nodes_per_graph', tested_nodes)
         return accs
