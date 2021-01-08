@@ -121,14 +121,14 @@ def explain_gradcam(model, node_idx, x, edge_index, target, include_edges=None):
 def explain_distance(model, node_idx, x, edge_index, target, include_edges=None):
     data = Data(x=x, edge_index=edge_index)
     g = to_networkx(data)
-    length = nx.shortest_path_length(g, source=node_idx)
+    length = nx.shortest_path_length(g, target=node_idx)
 
     def get_attr(node):
         if node in length:
             return 1 / (length[node] + 1)
         return 0
 
-    edge_sources = edge_index[0].cpu().numpy()
+    edge_sources = edge_index[1].cpu().numpy()
     return np.array([get_attr(node) for node in edge_sources])
 
 
