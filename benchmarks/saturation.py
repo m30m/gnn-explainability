@@ -9,12 +9,13 @@ from torch_geometric.utils import from_networkx
 from tqdm import tqdm as tq
 
 from benchmarks.benchmark import Benchmark
+from explain_methods import explain_occlusion
 
 
 class Saturation(Benchmark):
     NUM_GRAPHS = 100
     TEST_RATIO = 0.1
-    METHODS = [method for method in Benchmark.METHODS if 'occlusion' not in method]
+    OCCLUSION_SUBSAMPLE_PER_GRAPH = 20
 
     def create_dataset(self):
         K = 10
@@ -80,6 +81,11 @@ class Saturation(Benchmark):
 
         data.explanations = explanations
         return data
+
+    def subsample_nodes(self, explain_function, nodes):
+        if explain_function.explain_function == explain_occlusion:
+            return random.sample(nodes, self.OCCLUSION_SUBSAMPLE_PER_GRAPH)
+        return super().subsample_nodes(explain_function, nodes)
 
     def evaluate_explanation(self, explain_function, model, test_dataset):
         accs = []
