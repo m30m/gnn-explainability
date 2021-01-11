@@ -137,6 +137,7 @@ class Community(Benchmark):
             model_cache = model(dss.x, dss.edge_index)
             edge_index_rewired = dss.edge_index.clone().to(self.device)
             rewire_mask = torch.zeros(dss.num_edges, dtype=bool)
+            mask_edge_count = []
             for node_idx in pbar:
                 prob, label = model_cache[[node_idx]].softmax(dim=1).max(dim=1)
                 for edit_type, edits in dss.rewiring.node_edits[node_idx]:
@@ -157,6 +158,7 @@ class Community(Benchmark):
                                       k_hop_subgraph(node_idx, depth_limit, edge_index_rewired)[3])
 
                         final_mask = final_mask.cpu() & rewire_mask
+                        mask_edge_count.append(final_mask.sum().item())
                         attribution = explain_function(model, node_idx, dss.x, dss.edge_index, target, final_mask)[
                             final_mask]
                         attribution_rewired = \
@@ -174,5 +176,6 @@ class Community(Benchmark):
                     for eid in edits:
                         edge_index_rewired[:, eid] = torch.tensor(dss.rewiring.id_to_edge[eid], dtype=int)
                         rewire_mask[eid] = False
+            mlflow.log_metric('mask_edge_count', np.mean(mask_edge_count))
             accs.append((1 - bads / tests))
         return accs
