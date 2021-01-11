@@ -14,6 +14,7 @@ from benchmarks.benchmark import Benchmark
 class Infection(Benchmark):
     NUM_GRAPHS = 10
     TEST_RATIO = 0.4
+    METHODS = ['occlusion']
 
     @staticmethod
     def get_accuracy(correct_ids, edge_mask, edge_index):
@@ -49,6 +50,8 @@ class Infection(Benchmark):
         shortest_path_length = nx.single_source_shortest_path_length(g, 'X')
         unique_solution_nodes = []
         unique_solution_explanations = []
+        multi_solution_nodes = []
+        multi_solution_explanations = []
         labels = []
         features = np.zeros((N, 2))
         for i in range(N):
@@ -59,21 +62,25 @@ class Infection(Benchmark):
             col = 0 if i in infected_nodes else 1
             features[i, col] = 1
             if 0 < length <= max_dist:
-                path_iterator = iter(nx.all_shortest_paths(g, 'X', i))
-                unique_shortest_path = next(path_iterator)
-                if next(path_iterator, 0) != 0:
-                    continue
-                unique_shortest_path.pop(0)  # pop 'X' node
-                if len(unique_shortest_path) == 0:
-                    continue
-                unique_solution_explanations.append(unique_shortest_path)
-                unique_solution_nodes.append(i)
+                all_paths = list(nx.all_shortest_paths(g, 'X', i))
+                all_paths = [path for path in all_paths if len(path) > 1]
+                for path in all_paths:
+                    path.pop(0)  # pop 'X' node
+                if len(all_paths) != 1:
+                    multi_solution_nodes.append(i)
+                    multi_solution_explanations.append(all_paths)
+                else:
+                    unique_shortest_path = all_paths[0]
+                    unique_solution_explanations.append(unique_shortest_path)
+                    unique_solution_nodes.append(i)
         g.remove_node('X')
         data = from_networkx(g)
         data.x = torch.tensor(features, dtype=torch.float)
         data.y = torch.tensor(labels)
         data.unique_solution_nodes = unique_solution_nodes
         data.unique_solution_explanations = unique_solution_explanations
+        data.multi_solution_nodes = multi_solution_nodes
+        data.multi_solution_explanations = multi_solution_explanations
         data.num_classes = 1 + max_dist + 1
         print('created one')
         return data
@@ -83,17 +90,20 @@ class Infection(Benchmark):
         misclassify_count = 0
         for data in test_dataset:
             _, pred = model(data.x, data.edge_index).max(dim=1)
-            nodes_to_test = list(zip(data.unique_solution_nodes, data.unique_solution_explanations))
+            nodes_to_test = list(zip(data.multi_solution_nodes, data.multi_solution_explanations))
             nodes_to_test = self.subsample_nodes(explain_function, nodes_to_test)
             pbar = tq(nodes_to_test, disable=False)
             tested_nodes = 0
-            for node_idx, correct_ids in pbar:
+            for node_idx, solutions in pbar:
                 if pred[node_idx] != data.y[node_idx]:
                     misclassify_count += 1
                     continue
                 tested_nodes += 1
                 edge_mask = explain_function(model, node_idx, data.x, data.edge_index, data.y[node_idx].item())
-                explain_acc = self.get_accuracy(correct_ids, edge_mask, data.edge_index)
+                explain_acc = []
+                for correct_ids in solutions:
+                    explain_acc.append(self.get_accuracy(correct_ids, edge_mask, data.edge_index))
+                explain_acc = max(explain_acc)
                 accs.append(explain_acc)
                 pbar.set_postfix(acc=np.mean(accs))
             mlflow.log_metric('tested_nodes_per_graph', tested_nodes)
