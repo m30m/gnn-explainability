@@ -18,10 +18,11 @@ from captum._utils.typing import TargetType
 from captum.attr import Saliency, IntegratedGradients, LayerGradCam
 from torch import Tensor
 from torch_geometric.data import Data
-from torch_geometric.nn import GNNExplainer, MessagePassing
+from torch_geometric.nn import MessagePassing
 from torch_geometric.utils import to_networkx
 
 from pgm_explainer import Node_Explainer
+from gnn_explainer import TargetedGNNExplainer
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -244,8 +245,8 @@ def explain_occlusion_undirected(model, node_idx, x, edge_index, target, include
 
 
 def explain_gnnexplainer(model, node_idx, x, edge_index, target, include_edges=None):
-    explainer = GNNExplainer(model, epochs=200, log=False)
-    node_feat_mask, edge_mask = explainer.explain_node(node_idx, x, edge_index)
+    explainer = TargetedGNNExplainer(model, epochs=200, log=False)
+    node_feat_mask, edge_mask = explainer.explain_node_with_target(node_idx, x, edge_index, target_class=target)
     return edge_mask.cpu().numpy()
 
 
