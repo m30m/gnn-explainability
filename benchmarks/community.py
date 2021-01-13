@@ -177,5 +177,6 @@ class Community(Benchmark):
                         edge_index_rewired[:, eid] = torch.tensor(dss.rewiring.id_to_edge[eid], dtype=int)
                         rewire_mask[eid] = False
             mlflow.log_metric('mask_edge_count', np.mean(mask_edge_count))
+            mlflow.log_metric('tested_nodes_per_graph', tests)
             accs.append((1 - bads / tests))
         return accs

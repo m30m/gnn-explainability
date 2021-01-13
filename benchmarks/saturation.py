@@ -110,4 +110,5 @@ class Saturation(Benchmark):
                 edge_pos = list(np.argsort(-edge_mask)).index(correct_edge_id)
                 accs.append(edge_pos)
                 pbar.set_postfix(acc=np.mean(accs))
+            mlflow.log_metric('tested_nodes_per_graph', len(edge_pos))
         return accs
