@@ -5,7 +5,7 @@ import mlflow
 import networkx as nx
 import numpy as np
 import torch
-from torch_geometric.utils import from_networkx
+from torch_geometric.utils import from_networkx, to_networkx
 from tqdm import tqdm as tq
 
 from benchmarks.benchmark import Benchmark
@@ -13,102 +13,86 @@ from explain_methods import explain_occlusion
 
 
 class Saturation(Benchmark):
-    NUM_GRAPHS = 100
-    TEST_RATIO = 0.1
-    OCCLUSION_SUBSAMPLE_PER_GRAPH = 20
+    NUM_GRAPHS = 10
+    TEST_RATIO = 0.4
+
+    def __init__(self, sample_count, num_layers, concat_features, conv_type):
+        assert num_layers == 1, "Number of layers should be 1 for saturation benchmark"
+        super().__init__(sample_count, num_layers, concat_features, conv_type)
 
     def create_dataset(self):
-        K = 10
-        SZ = 100
-        N = SZ * K
-        sizes = [SZ] * K
-        P = 0.15
-        Q = 0.04
-        PERTURB_COUNT = 500
-        mlflow.log_param('P', P)
-        mlflow.log_param('Q', Q)
-        mlflow.log_param('N', N)
-        mlflow.log_param('K', K)
-        mlflow.log_param('PERTURB_COUNT', PERTURB_COUNT)
-        probs = np.ones((K, K)) * Q
-        probs += np.eye(K) * (P - Q)
-        g = nx.stochastic_block_model(sizes, probs, directed=True)
+        g = nx.Graph()
+        for i in range(2020):
+            g.add_node(i)
 
-        colors = []
-        for i in range(K):
-            colors.extend([i] * SZ)
-        labels = colors.copy()
+        colors = [1] * 10 + [2] * 10 + [0] * 2000
+        # blue =1
+        # red =2
+        blue_nodes = [i for i in g.nodes() if colors[i] == 1]
+        red_nodes = [i for i in g.nodes() if colors[i] == 2]
+        white_nodes = [i for i in g.nodes() if colors[i] == 0]
+        # labels 3: both
+        # labels 2: red
+        # labels 1: blue
+        # labels 0: none
+        labels = colors[:20] + [0] * 500 + [2] * 500 + [1] * 500 + [3] * 500
+        blue_counts = [-1] * 20
+        red_counts = [-1] * 20
+        for node in white_nodes:
+            white_count = random.randint(0, 10)
+            for u in random.sample(white_nodes, white_count):
+                if u != node:
+                    g.add_edge(node, u)
 
-        for i in random.sample(list(range(N)), PERTURB_COUNT):
-            choices = list(range(10))
-            colors[i] = random.choice(choices)
+        for idx, node in enumerate(white_nodes[500:1000]):
+            red_count = 1 + (idx % 10)
+            for u in random.sample(red_nodes, red_count):
+                g.add_edge(node, u)
 
-        infected_nodes = random.sample(list(range(N)), 15)
+        for idx, node in enumerate(white_nodes[1000:1500]):
+            blue_count = 1 + (idx % 10)
+            for u in random.sample(blue_nodes, blue_count):
+                g.add_edge(node, u)
 
-        # an infected node infects the neighbors in the outcome
-        infected_neighbors = set()
-        for i in infected_nodes:
-            infected_neighbors.add(i)
-            for v in g.neighbors(i):
-                infected_neighbors.add(v)
-
-        features = np.zeros((len(g.nodes()), 11))
-
-        for i, c in enumerate(colors):
-            features[i, c] = 1
-
-        for i in infected_nodes:
-            features[i, 10] = 1
-
-        for i in infected_neighbors:
-            labels[i] = labels[i] + 10
-
+        for idx, node in enumerate(white_nodes[1500:2000]):
+            idx = idx % 100
+            blue_count = 1 + (idx // 10)
+            red_count = 1 + (idx % 10)
+            for u in random.sample(blue_nodes, blue_count):
+                g.add_edge(node, u)
+            for u in random.sample(red_nodes, red_count):
+                g.add_edge(node, u)
         data = from_networkx(g)
-        data.x = torch.tensor(features, dtype=torch.float)
+        data.x = torch.nn.functional.one_hot(torch.tensor(colors)).float()
         data.y = torch.tensor(labels)
-        data.num_classes = len(set(labels))
-
-        infection_sources = defaultdict(list)
-        for idx, (u, v) in enumerate(zip(*data.edge_index.cpu().numpy())):
-            if features[u, -1]:
-                infection_sources[int(v)].append(idx)
-        explanations = []
-        for node, sources in infection_sources.items():
-            if node in infected_nodes:  # no edge explanation for these nodes
-                continue
-            if len(sources) == 1:  # unique explanation
-                explanations.append((node, sources[0]))
-
-        data.explanations = explanations
+        data.num_classes = 4
         return data
-
-    def subsample_nodes(self, explain_function, nodes):
-        if explain_function.explain_function == explain_occlusion:
-            return random.sample(nodes, self.OCCLUSION_SUBSAMPLE_PER_GRAPH)
-        return super().subsample_nodes(explain_function, nodes)
 
     def evaluate_explanation(self, explain_function, model, test_dataset):
         accs = []
-        misclassify_count = 0
         for data in test_dataset:
-            _, pred = model(data.x, data.edge_index).max(dim=1)
-            nodes_to_test = data.explanations
+            edge_to_id = {}
+            for idx, edge in enumerate((zip(*data.edge_index.numpy()))):
+                edge_to_id[edge] = idx
+            g = to_networkx(data)
+            nodes_to_test = torch.where(data.y == 3)[0].tolist()
             nodes_to_test = self.subsample_nodes(explain_function, nodes_to_test)
             pbar = tq(nodes_to_test)
-            infection_accuracy = 0
-            for node_idx in range(len(data.x)):
-                if pred[node_idx].item() // 10 == data.y[node_idx].item() // 10:
-                    infection_accuracy += 1
-            infection_accuracy /= len(data.x)
-            mlflow.log_metric('infection_accuracy', infection_accuracy)
-            print('infection_accuracy', infection_accuracy)
-            for node_idx, correct_edge_id in pbar:
-                if pred[node_idx] != data.y[node_idx]:
-                    misclassify_count += 1
-                    continue
+            for node_idx in pbar:
+                red_ids = []
+                blue_ids = []
+                for u in list(g.neighbors(node_idx)):
+                    eid = edge_to_id[(u, node_idx)]
+                    if data.x[u][1].item():
+                        blue_ids.append(eid)
+                    if data.x[u][2].item():
+                        red_ids.append(eid)
+
                 edge_mask = explain_function(model, node_idx, data.x, data.edge_index, data.y[node_idx].item())
-                edge_pos = list(np.argsort(-edge_mask)).index(correct_edge_id)
-                accs.append(edge_pos)
+                red_sum = np.sum(edge_mask[red_ids])
+                blue_sum = np.sum(edge_mask[blue_ids])
+                sum_ratio = min(red_sum, blue_sum) / max(red_sum, blue_sum)
+                accs.append(1 if sum_ratio > 0.1 else 0)
                 pbar.set_postfix(acc=np.mean(accs))
-            mlflow.log_metric('tested_nodes_per_graph', len(edge_pos))
+            mlflow.log_metric('tested_nodes_per_graph', len(nodes_to_test))
         return accs
