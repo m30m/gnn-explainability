@@ -36,8 +36,6 @@ class Saturation(Benchmark):
         # labels 1: blue
         # labels 0: none
         labels = colors[:20] + [0] * 500 + [2] * 500 + [1] * 500 + [3] * 500
-        blue_counts = [-1] * 20
-        red_counts = [-1] * 20
         for node in white_nodes:
             white_count = random.randint(0, 10)
             for u in random.sample(white_nodes, white_count):
@@ -54,10 +52,13 @@ class Saturation(Benchmark):
             for u in random.sample(blue_nodes, blue_count):
                 g.add_edge(node, u)
 
+        nodes_to_test = []
         for idx, node in enumerate(white_nodes[1500:2000]):
             idx = idx % 100
             blue_count = 1 + (idx // 10)
             red_count = 1 + (idx % 10)
+            if red_count == 1 or blue_count == 1:
+                nodes_to_test.append(node)
             for u in random.sample(blue_nodes, blue_count):
                 g.add_edge(node, u)
             for u in random.sample(red_nodes, red_count):
@@ -66,6 +67,7 @@ class Saturation(Benchmark):
         data.x = torch.nn.functional.one_hot(torch.tensor(colors)).float()
         data.y = torch.tensor(labels)
         data.num_classes = 4
+        data.nodes_to_test = nodes_to_test
         return data
 
     def evaluate_explanation(self, explain_function, model, test_dataset):
@@ -75,7 +77,7 @@ class Saturation(Benchmark):
             for idx, edge in enumerate((zip(*data.edge_index.numpy()))):
                 edge_to_id[edge] = idx
             g = to_networkx(data)
-            nodes_to_test = torch.where(data.y == 3)[0].tolist()
+            nodes_to_test = data.nodes_to_test
             nodes_to_test = self.subsample_nodes(explain_function, nodes_to_test)
             pbar = tq(nodes_to_test)
             for node_idx in pbar:
@@ -87,7 +89,7 @@ class Saturation(Benchmark):
                         blue_ids.append(eid)
                     if data.x[u][2].item():
                         red_ids.append(eid)
-
+                assert len(red_ids) == 1 or len(blue_ids) == 1, "One color should have single edge explanation"
                 edge_mask = explain_function(model, node_idx, data.x, data.edge_index, data.y[node_idx].item())
                 red_sum = np.sum(edge_mask[red_ids])
                 blue_sum = np.sum(edge_mask[blue_ids])
