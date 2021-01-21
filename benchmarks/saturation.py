@@ -1,4 +1,7 @@
+import json
+import os
 import random
+import tempfile
 from collections import defaultdict
 
 import mlflow
@@ -19,6 +22,7 @@ class Saturation(Benchmark):
     def __init__(self, sample_count, num_layers, concat_features, conv_type):
         assert num_layers == 1, "Number of layers should be 1 for saturation benchmark"
         super().__init__(sample_count, num_layers, concat_features, conv_type)
+        self.run_count = 0
 
     def create_dataset(self):
         g = nx.Graph()
@@ -72,6 +76,7 @@ class Saturation(Benchmark):
 
     def evaluate_explanation(self, explain_function, model, test_dataset):
         accs = []
+        all_attributions = []
         for data in test_dataset:
             edge_to_id = {}
             for idx, edge in enumerate((zip(*data.edge_index.numpy()))):
@@ -95,6 +100,12 @@ class Saturation(Benchmark):
                 blue_sum = np.sum(edge_mask[blue_ids])
                 sum_ratio = min(red_sum, blue_sum) / max(red_sum, blue_sum)
                 accs.append(1 if sum_ratio > 0.1 else 0)
+                all_attributions.append({'red': list(edge_mask[red_ids]), 'blue': list(edge_mask[blue_ids])})
                 pbar.set_postfix(acc=np.mean(accs))
             mlflow.log_metric('tested_nodes_per_graph', len(nodes_to_test))
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_path = os.path.join(tmpdir, 'saturation_log_%d.json' % self.run_count)
+            json.dump(all_attributions, open(file_path, 'w'), indent=2)
+            mlflow.log_artifact(file_path)
+            self.run_count += 1
         return accs
