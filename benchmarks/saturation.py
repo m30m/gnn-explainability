@@ -100,7 +100,7 @@ class Saturation(Benchmark):
                 blue_sum = np.sum(edge_mask[blue_ids])
                 sum_ratio = min(red_sum, blue_sum) / max(red_sum, blue_sum)
                 accs.append(1 if sum_ratio > 0.1 else 0)
-                all_attributions.append({'red': list(edge_mask[red_ids]), 'blue': list(edge_mask[blue_ids])})
+                all_attributions.append({'red': edge_mask[red_ids].tolist(), 'blue': edge_mask[blue_ids].tolist()})
                 pbar.set_postfix(acc=np.mean(accs))
             mlflow.log_metric('tested_nodes_per_graph', len(nodes_to_test))
         with tempfile.TemporaryDirectory() as tmpdir:
