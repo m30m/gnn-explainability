@@ -1,3 +1,4 @@
+import itertools
 import json
 import os
 import random
@@ -40,11 +41,10 @@ class Saturation(Benchmark):
         # labels 1: blue
         # labels 0: none
         labels = colors[:20] + [0] * 500 + [2] * 500 + [1] * 500 + [3] * 500
-        for node in white_nodes:
-            white_count = random.randint(0, 10)
-            for u in random.sample(white_nodes, white_count):
-                if u != node:
-                    g.add_edge(node, u)
+        P = 0.015  # probability of edge between two white nodes
+        for u, v in itertools.combinations(white_nodes, 2):
+            if random.random() < P:
+                g.add_edge(u, v)
 
         for idx, node in enumerate(white_nodes[500:1000]):
             red_count = 1 + (idx % 10)
