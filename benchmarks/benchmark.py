@@ -40,7 +40,7 @@ class Benchmark(object):
     def create_dataset(self):
         raise NotImplementedError
 
-    def evaluate_explanation(self, explain_function, model, test_dataset):
+    def evaluate_explanation(self, explain_function, model, test_dataset, explain_name):
         raise NotImplementedError
 
     def subsample_nodes(self, explain_function, nodes):
@@ -134,7 +134,7 @@ class Benchmark(object):
                     return result
 
                 time_wrapper.explain_function = explain_function
-                accs = self.evaluate_explanation(time_wrapper, model, test_dataset)
+                accs = self.evaluate_explanation(time_wrapper, model, test_dataset, explain_name)
                 print(explain_name, np.mean(accs), np.std(accs))
                 all_explanations[explain_name].append(list(accs))
                 metrics = {

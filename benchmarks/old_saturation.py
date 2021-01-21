@@ -87,7 +87,7 @@ class SaturationOld(Benchmark):
             return random.sample(nodes, self.OCCLUSION_SUBSAMPLE_PER_GRAPH)
         return super().subsample_nodes(explain_function, nodes)
 
-    def evaluate_explanation(self, explain_function, model, test_dataset):
+    def evaluate_explanation(self, explain_function, model, test_dataset, explain_name):
         accs = []
         misclassify_count = 0
         for data in test_dataset:

@@ -124,7 +124,7 @@ class Community(Benchmark):
             return random.sample(nodes, self.EXPLANATION_SAMPLE_PER_GRAPH)
         return random.sample(nodes, self.PGMEXPLAINER_SUBSAMPLE_PER_GRAPH)
 
-    def evaluate_explanation(self, explain_function, model, test_dataset):
+    def evaluate_explanation(self, explain_function, model, test_dataset, explain_name):
         accs = []
         for dss in test_dataset:
             bads = 0

@@ -78,7 +78,7 @@ class Infection(Benchmark):
         print('created one')
         return data
 
-    def evaluate_explanation(self, explain_function, model, test_dataset):
+    def evaluate_explanation(self, explain_function, model, test_dataset, explain_name):
         accs = []
         misclassify_count = 0
         for data in test_dataset:
