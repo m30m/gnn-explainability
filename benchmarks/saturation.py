@@ -79,7 +79,7 @@ class Saturation(Benchmark):
         all_attributions = []
         for data in test_dataset:
             edge_to_id = {}
-            for idx, edge in enumerate((zip(*data.edge_index.numpy()))):
+            for idx, edge in enumerate((zip(*data.edge_index.cpu().numpy()))):
                 edge_to_id[edge] = idx
             g = to_networkx(data)
             nodes_to_test = data.nodes_to_test
