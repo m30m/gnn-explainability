@@ -19,6 +19,9 @@ class Benchmark(object):
     PGMEXPLAINER_SUBSAMPLE_PER_GRAPH = 20
     METHODS = ['pagerank', 'pgmexplainer', 'occlusion', 'distance', 'gradXact', 'random', 'sa_node',
                'ig_node', 'sa', 'ig', 'gnnexplainer']
+    LR = 0.0003
+    EPOCHS = 400
+    WEIGHT_DECAY = 0
 
     def __init__(self, sample_count, num_layers, concat_features, conv_type):
         arguments = {
@@ -86,14 +89,11 @@ class Benchmark(object):
         return correct / total
 
     def train_and_test(self, model, train_loader, test_loader):
-        weight_decay = 0
-        lr = 0.005
-        epochs = 200
-        optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
-        mlflow.log_param('weight_decay', weight_decay)
-        mlflow.log_param('lr', lr)
-        mlflow.log_param('epochs', epochs)
-        pbar = tq(range(epochs))
+        optimizer = torch.optim.Adam(model.parameters(), lr=self.LR, weight_decay=self.WEIGHT_DECAY)
+        mlflow.log_param('weight_decay', self.WEIGHT_DECAY)
+        mlflow.log_param('lr', self.LR)
+        mlflow.log_param('epochs', self.EPOCHS)
+        pbar = tq(range(self.EPOCHS))
         for epoch in pbar:
             train_loss = self.train(model, optimizer, train_loader)
             train_acc = self.test(model, train_loader)

@@ -19,6 +19,7 @@ from explain_methods import explain_occlusion
 class Saturation(Benchmark):
     NUM_GRAPHS = 10
     TEST_RATIO = 0.4
+    LR = 0.005
 
     def __init__(self, sample_count, num_layers, concat_features, conv_type):
         assert num_layers == 1, "Number of layers should be 1 for saturation benchmark"
