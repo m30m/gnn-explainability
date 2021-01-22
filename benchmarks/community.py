@@ -21,7 +21,7 @@ class Rewiring:
 class Community(Benchmark):
     NUM_GRAPHS = 50
     TEST_RATIO = 0.1
-    EXPLANATION_SAMPLE_PER_GRAPH = 200
+    EXPLANATION_SAMPLE_PER_GRAPH = 1000
 
     def __init__(self, sample_count, num_layers, concat_features, conv_type):
         super().__init__(sample_count, num_layers, concat_features, conv_type)
@@ -31,8 +31,8 @@ class Community(Benchmark):
         K = 10
         SZ = 100
         N = SZ * K
-        P = 0.15
-        Q = 0.04
+        P = 0.05
+        Q = 0.007
         PERTURB_COUNT = 500
         REWIRE_COUNT = 50
         mlflow.log_param('P', P)
