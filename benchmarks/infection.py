@@ -14,6 +14,7 @@ from benchmarks.benchmark import Benchmark
 class Infection(Benchmark):
     NUM_GRAPHS = 10
     TEST_RATIO = 0.4
+    LR = 0.005
 
     @staticmethod
     def get_accuracy(correct_ids, edge_mask, edge_index):
@@ -77,6 +78,9 @@ class Infection(Benchmark):
         data.num_classes = 1 + max_dist + 1
         print('created one')
         return data
+
+    def is_trained_model_valid(self, test_acc):
+        return test_acc > 0.999
 
     def evaluate_explanation(self, explain_function, model, test_dataset, explain_name):
         accs = []

@@ -75,6 +75,9 @@ class Saturation(Benchmark):
         data.nodes_to_test = nodes_to_test
         return data
 
+    def is_trained_model_valid(self, test_acc):
+        return test_acc > 0.999
+
     def evaluate_explanation(self, explain_function, model, test_dataset, explain_name):
         accs = []
         all_attributions = []

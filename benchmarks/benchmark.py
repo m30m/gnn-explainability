@@ -101,6 +101,9 @@ class Benchmark(object):
             pbar.set_postfix(train_loss=train_loss, train_acc=train_acc, test_acc=test_acc)
         return train_acc, test_acc
 
+    def is_trained_model_valid(self, test_acc):
+        return True
+
     def run(self):
         print(f"Using device {self.device}")
         all_explanations = defaultdict(list)
@@ -114,6 +117,9 @@ class Benchmark(object):
                          self.conv_type).to(
                 self.device)
             train_acc, test_acc = self.train_and_test(model, train_dataset, test_dataset)
+            if not self.is_trained_model_valid(test_acc):
+                print('Model accuracy was not valid, ignoring this experiment')
+                continue
             model.eval()
             metrics = {
                 'train_acc': train_acc,
