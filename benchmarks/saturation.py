@@ -28,10 +28,10 @@ class Saturation(Benchmark):
 
     def create_dataset(self):
         g = nx.Graph()
-        for i in range(2011):
+        for i in range(2000):
             g.add_node(i)
 
-        colors = [1]*1 + [2]*10 + [0]*2000
+        colors = [1] * 10 + [2] * 10 + [0] * 1980
         # blue =1
         # red =2
         blue_nodes = [i for i in g.nodes() if colors[i] == 1]
@@ -41,35 +41,33 @@ class Saturation(Benchmark):
         # labels 2: red
         # labels 1: blue
         # labels 0: none
-        labels = colors[:11] + [0] * 500 + [2] * 500 + [1] * 500 + [3] * 500
+        labels = colors[:20] + [1] * 990 + [2] * 990
         P = 0.015  # probability of edge between two white nodes
         for u, v in itertools.combinations(white_nodes, 2):
             if random.random() < P:
                 g.add_edge(u, v)
 
-        for idx, node in enumerate(white_nodes[500:1000]):
-            red_count = 1 + (idx % 10)
-            for u in random.sample(red_nodes, red_count):
-                g.add_edge(node, u)
-
-        for idx, node in enumerate(white_nodes[1000:1500]):
-            blue_count = 1
-            for u in random.sample(blue_nodes, blue_count):
-                g.add_edge(node, u)
+        blue_red_combs = list(itertools.permutations(list(range(1, 11)), 2))
 
         nodes_to_test = []
-        for idx, node in enumerate(white_nodes[1500:2000]):
-            blue_count = 1
-            red_count = 1 + (idx % 10)
-            nodes_to_test.append(node)
+        for idx, node in enumerate(white_nodes):
+            idx = idx % len(blue_red_combs)
+            blue_count, red_count = blue_red_combs[idx]
+            if abs(red_count - blue_count) > 1:
+                nodes_to_test.append(node)
             for u in random.sample(blue_nodes, blue_count):
                 g.add_edge(node, u)
             for u in random.sample(red_nodes, red_count):
                 g.add_edge(node, u)
+            if blue_count > red_count:
+                labels[node] = 1
+            else:
+                labels[node] = 2
+        labels = [x - 1 for x in labels]
         data = from_networkx(g)
         data.x = torch.nn.functional.one_hot(torch.tensor(colors)).float()
         data.y = torch.tensor(labels)
-        data.num_classes = 4
+        data.num_classes = 2
         data.nodes_to_test = nodes_to_test
         return data
 
@@ -99,7 +97,6 @@ class Saturation(Benchmark):
                         red_ids.append(eid)
                     else:
                         white_ids.append(eid)
-                assert len(blue_ids) == 1, "Blue color should have single edge explanation"
                 edge_mask = explain_function(model, node_idx, data.x, data.edge_index, data.y[node_idx].item())
                 red_sum = np.sum(edge_mask[red_ids])
                 blue_sum = np.sum(edge_mask[blue_ids])
@@ -107,7 +104,7 @@ class Saturation(Benchmark):
                 accs.append(1 if sum_ratio > 0.1 else 0)
                 all_attributions.append({'red': edge_mask[red_ids].tolist(),
                                          'blue': edge_mask[blue_ids].tolist(),
-                                         'white': edge_mask[white_ids].tolist(),})
+                                         'white': edge_mask[white_ids].tolist()})
                 pbar.set_postfix(acc=np.mean(accs))
             mlflow.log_metric('tested_nodes_per_graph', len(nodes_to_test))
         with tempfile.TemporaryDirectory() as tmpdir:
