@@ -154,7 +154,7 @@ def explain_sa(model, node_idx, x, edge_index, target, include_edges=None):
     saliency = Saliency(model_forward)
     input_mask = torch.ones(edge_index.shape[1]).requires_grad_(True).to(device)
     saliency_mask = saliency.attribute(input_mask, target=target,
-                                       additional_forward_args=(model, node_idx, x, edge_index))
+                                       additional_forward_args=(model, node_idx, x, edge_index), abs=False)
 
     edge_mask = saliency_mask.cpu().numpy()
     return edge_mask
