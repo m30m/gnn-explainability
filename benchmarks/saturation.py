@@ -28,10 +28,10 @@ class Saturation(Benchmark):
 
     def create_dataset(self):
         g = nx.Graph()
-        for i in range(2020):
+        for i in range(2011):
             g.add_node(i)
 
-        colors = [1] * 10 + [2] * 10 + [0] * 2000
+        colors = [1]*1 + [2]*10 + [0]*2000
         # blue =1
         # red =2
         blue_nodes = [i for i in g.nodes() if colors[i] == 1]
@@ -41,7 +41,7 @@ class Saturation(Benchmark):
         # labels 2: red
         # labels 1: blue
         # labels 0: none
-        labels = colors[:20] + [0] * 500 + [2] * 500 + [1] * 500 + [3] * 500
+        labels = colors[:11] + [0] * 500 + [2] * 500 + [1] * 500 + [3] * 500
         P = 0.015  # probability of edge between two white nodes
         for u, v in itertools.combinations(white_nodes, 2):
             if random.random() < P:
@@ -53,17 +53,15 @@ class Saturation(Benchmark):
                 g.add_edge(node, u)
 
         for idx, node in enumerate(white_nodes[1000:1500]):
-            blue_count = 1 + (idx % 10)
+            blue_count = 1
             for u in random.sample(blue_nodes, blue_count):
                 g.add_edge(node, u)
 
         nodes_to_test = []
         for idx, node in enumerate(white_nodes[1500:2000]):
-            idx = idx % 100
-            blue_count = 1 + (idx // 10)
+            blue_count = 1
             red_count = 1 + (idx % 10)
-            if red_count == 1 or blue_count == 1:
-                nodes_to_test.append(node)
+            nodes_to_test.append(node)
             for u in random.sample(blue_nodes, blue_count):
                 g.add_edge(node, u)
             for u in random.sample(red_nodes, red_count):
@@ -92,19 +90,24 @@ class Saturation(Benchmark):
             for node_idx in pbar:
                 red_ids = []
                 blue_ids = []
+                white_ids = []
                 for u in list(g.neighbors(node_idx)):
                     eid = edge_to_id[(u, node_idx)]
                     if data.x[u][1].item():
                         blue_ids.append(eid)
-                    if data.x[u][2].item():
+                    elif data.x[u][2].item():
                         red_ids.append(eid)
-                assert len(red_ids) == 1 or len(blue_ids) == 1, "One color should have single edge explanation"
+                    else:
+                        white_ids.append(eid)
+                assert len(blue_ids) == 1, "Blue color should have single edge explanation"
                 edge_mask = explain_function(model, node_idx, data.x, data.edge_index, data.y[node_idx].item())
                 red_sum = np.sum(edge_mask[red_ids])
                 blue_sum = np.sum(edge_mask[blue_ids])
                 sum_ratio = min(red_sum, blue_sum) / max(red_sum, blue_sum)
                 accs.append(1 if sum_ratio > 0.1 else 0)
-                all_attributions.append({'red': edge_mask[red_ids].tolist(), 'blue': edge_mask[blue_ids].tolist()})
+                all_attributions.append({'red': edge_mask[red_ids].tolist(),
+                                         'blue': edge_mask[blue_ids].tolist(),
+                                         'white': edge_mask[white_ids].tolist(),})
                 pbar.set_postfix(acc=np.mean(accs))
             mlflow.log_metric('tested_nodes_per_graph', len(nodes_to_test))
         with tempfile.TemporaryDirectory() as tmpdir:
