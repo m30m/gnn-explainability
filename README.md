@@ -45,3 +45,6 @@ Run the mlflow UI by running the following command in the root directory of the 
 mlflow ui
 ```
 You can view the UI using URL `http://localhost:5000`.
+Here is a sample screenshot:
+
+![Sample mlflow screenshot](mlflow-ui.png)
