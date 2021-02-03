@@ -141,16 +141,18 @@ class Benchmark(object):
 
                 time_wrapper.explain_function = explain_function
                 accs = self.evaluate_explanation(time_wrapper, model, test_dataset, explain_name)
-                print(explain_name, np.mean(accs), np.std(accs))
+                print(f'Run #{experiment_i + 1}, Explain Method: {explain_name}, Accuracy: {np.mean(accs)}')
                 all_explanations[explain_name].append(list(accs))
                 metrics = {
                     f'explain_{explain_name}_acc': np.mean(accs),
-                    f'explain_{explain_name}_acc_std': np.std(accs),
                     f'time_{explain_name}_s_avg': np.mean(duration_samples),
-                    f'time_{explain_name}_s_std': np.std(duration_samples),
                 }
                 with tempfile.TemporaryDirectory() as tmpdir:
                     file_path = os.path.join(tmpdir, 'accuracies.json')
                     json.dump(all_explanations, open(file_path, 'w'), indent=2)
                     mlflow.log_artifact(file_path)
                 mlflow.log_metrics(metrics, step=experiment_i)
+            print(f'Run #{experiment_i + 1} finished. Average Explanation Accuracies for each method:')
+            for name, run_accs in all_explanations.items():
+                avg_acc = np.mean([np.mean(single_run_acc) for single_run_acc in run_accs])
+                print(f'{name} : {avg_acc}')
