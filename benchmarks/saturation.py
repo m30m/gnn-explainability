@@ -97,9 +97,9 @@ class Saturation(Benchmark):
                     else:
                         white_ids.append(eid)
                 edge_mask = explain_function(model, node_idx, data.x, data.edge_index, data.y[node_idx].item())
-                red_avg = np.mean(edge_mask[red_ids])
-                blue_avg = np.mean(edge_mask[blue_ids])
-                white_avg = np.mean(edge_mask[white_ids])
+                red_avg = np.mean(np.abs(edge_mask[red_ids]))
+                blue_avg = np.mean(np.abs(edge_mask[blue_ids]))
+                white_avg = np.mean(np.abs(edge_mask[white_ids]))
                 test_pass = 1
                 if white_avg >= blue_avg or white_avg >= red_avg:
                     test_pass = 0
