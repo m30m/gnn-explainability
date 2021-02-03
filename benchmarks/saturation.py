@@ -13,7 +13,6 @@ from torch_geometric.utils import from_networkx, to_networkx
 from tqdm import tqdm as tq
 
 from benchmarks.benchmark import Benchmark
-from explain_methods import explain_occlusion
 
 
 class Saturation(Benchmark):
@@ -98,10 +97,13 @@ class Saturation(Benchmark):
                     else:
                         white_ids.append(eid)
                 edge_mask = explain_function(model, node_idx, data.x, data.edge_index, data.y[node_idx].item())
-                red_sum = np.sum(edge_mask[red_ids])
-                blue_sum = np.sum(edge_mask[blue_ids])
-                sum_ratio = min(red_sum, blue_sum) / max(red_sum, blue_sum)
-                accs.append(1 if sum_ratio > 0.1 else 0)
+                red_avg = np.mean(edge_mask[red_ids])
+                blue_avg = np.mean(edge_mask[blue_ids])
+                white_avg = np.mean(edge_mask[white_ids])
+                test_pass = 1
+                if white_avg >= blue_avg or white_avg >= red_avg:
+                    test_pass = 0
+                accs.append(test_pass)
                 all_attributions.append({'red': edge_mask[red_ids].tolist(),
                                          'blue': edge_mask[blue_ids].tolist(),
                                          'white': edge_mask[white_ids].tolist()})
