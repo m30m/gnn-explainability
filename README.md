@@ -37,6 +37,8 @@ python main.py community
 python main_node.py saturation --num-layers 1 # for the negative evidence experiment
 ```
 
+You can run the `Pitfall2-Example.ipynb` notebook independently for experimenting with the toy dataset in pitfall 2 explanation.
+
 ## How to see the results:
 Run the mlflow UI by running the following command in the root directory of the project:
 ```
