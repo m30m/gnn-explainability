@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from tqdm import tqdm as tq
 
 from explain_methods import *
-from models_node import Net1
+from models import Net1
 
 
 class Benchmark(object):
