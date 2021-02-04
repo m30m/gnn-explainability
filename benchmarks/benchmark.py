@@ -107,6 +107,7 @@ class Benchmark(object):
     def run(self):
         print(f"Using device {self.device}")
         all_explanations = defaultdict(list)
+        all_runtimes = defaultdict(list)
         for experiment_i in tq(range(self.sample_count)):
             dataset = [self.create_dataset() for i in range(self.NUM_GRAPHS)]
             split_point = int(len(dataset) * self.TEST_RATIO)
@@ -143,6 +144,7 @@ class Benchmark(object):
                 accs = self.evaluate_explanation(time_wrapper, model, test_dataset, explain_name)
                 print(f'Run #{experiment_i + 1}, Explain Method: {explain_name}, Accuracy: {np.mean(accs)}')
                 all_explanations[explain_name].append(list(accs))
+                all_runtimes[explain_name].extend(duration_samples)
                 metrics = {
                     f'explain_{explain_name}_acc': np.mean(accs),
                     f'time_{explain_name}_s_avg': np.mean(duration_samples),
@@ -158,7 +160,11 @@ class Benchmark(object):
                 run_accs = [np.mean(single_run_acc) for single_run_acc in run_accs]
                 accuracies_summary[name] = {'avg': np.mean(run_accs), 'std': np.std(run_accs), 'count': len(run_accs)}
                 print(f'{name} : avg:{np.mean(run_accs)} std:{np.std(run_accs)}')
+            runtime_summary = {}
+            for name, runtimes in all_runtimes.items():
+                runtime_summary[name] = {'avg': np.mean(runtimes), 'std': np.std(runtimes)}
             with tempfile.TemporaryDirectory() as tmpdir:
-                file_path = os.path.join(tmpdir, 'accuracies_summary.json')
-                json.dump(accuracies_summary, open(file_path, 'w'), indent=2)
+                file_path = os.path.join(tmpdir, 'summary.json')
+                summary = {'accuracies': accuracies_summary, 'runtime': runtime_summary}
+                json.dump(summary, open(file_path, 'w'), indent=2)
                 mlflow.log_artifact(file_path)
