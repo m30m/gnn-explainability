@@ -153,6 +153,12 @@ class Benchmark(object):
                     mlflow.log_artifact(file_path)
                 mlflow.log_metrics(metrics, step=experiment_i)
             print(f'Run #{experiment_i + 1} finished. Average Explanation Accuracies for each method:')
+            accuracies_summary = {}
             for name, run_accs in all_explanations.items():
                 run_accs = [np.mean(single_run_acc) for single_run_acc in run_accs]
+                accuracies_summary[name] = {'avg': np.mean(run_accs), 'std': np.std(run_accs), 'count': len(run_accs)}
                 print(f'{name} : avg:{np.mean(run_accs)} std:{np.std(run_accs)}')
+            with tempfile.TemporaryDirectory() as tmpdir:
+                file_path = os.path.join(tmpdir, 'accuracies_summary.json')
+                json.dump(accuracies_summary, open(file_path, 'w'), indent=2)
+                mlflow.log_artifact(file_path)
