@@ -154,5 +154,5 @@ class Benchmark(object):
                 mlflow.log_metrics(metrics, step=experiment_i)
             print(f'Run #{experiment_i + 1} finished. Average Explanation Accuracies for each method:')
             for name, run_accs in all_explanations.items():
-                avg_acc = np.mean([np.mean(single_run_acc) for single_run_acc in run_accs])
-                print(f'{name} : {avg_acc}')
+                run_accs = [np.mean(single_run_acc) for single_run_acc in run_accs]
+                print(f'{name} : avg:{np.mean(run_accs)} std:{np.std(run_accs)}')
