@@ -103,7 +103,7 @@ class Saturation(Benchmark):
                 white_values = edge_mask[white_ids]
                 minority = min(red_values, blue_values, key=len)
                 pvalue = ks_2samp(white_values, minority).pvalue
-                accs.append(1 - pvalue)
+                accs.append(float(1 - pvalue))
                 all_attributions.append({'red': red_values.tolist(),
                                          'blue': blue_values.tolist(),
                                          'white': white_values.tolist()})
