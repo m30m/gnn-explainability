@@ -11,6 +11,7 @@ import numpy as np
 import torch
 from torch_geometric.utils import from_networkx, to_networkx
 from tqdm import tqdm as tq
+from scipy.stats import ks_2samp
 
 from benchmarks.benchmark import Benchmark
 
@@ -97,16 +98,15 @@ class Saturation(Benchmark):
                     else:
                         white_ids.append(eid)
                 edge_mask = explain_function(model, node_idx, data.x, data.edge_index, data.y[node_idx].item())
-                red_avg = np.mean(np.abs(edge_mask[red_ids]))
-                blue_avg = np.mean(np.abs(edge_mask[blue_ids]))
-                white_avg = np.mean(np.abs(edge_mask[white_ids]))
-                test_pass = 1
-                if white_avg >= blue_avg or white_avg >= red_avg:
-                    test_pass = 0
-                accs.append(test_pass)
-                all_attributions.append({'red': edge_mask[red_ids].tolist(),
-                                         'blue': edge_mask[blue_ids].tolist(),
-                                         'white': edge_mask[white_ids].tolist()})
+                red_values = edge_mask[red_ids]
+                blue_values = edge_mask[blue_ids]
+                white_values = edge_mask[white_ids]
+                minority = min(red_values, blue_values, key=len)
+                pvalue = ks_2samp(white_values, minority).pvalue
+                accs.append(1 - pvalue)
+                all_attributions.append({'red': red_values.tolist(),
+                                         'blue': blue_values.tolist(),
+                                         'white': white_values.tolist()})
                 pbar.set_postfix(acc=np.mean(accs))
             mlflow.log_metric('tested_nodes_per_graph', len(nodes_to_test))
         with tempfile.TemporaryDirectory() as tmpdir:
