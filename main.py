@@ -1,3 +1,4 @@
+import subprocess
 from enum import Enum
 
 import mlflow
@@ -23,6 +24,13 @@ def main(experiment: Experiment = typer.Argument(..., help="Dataset to use"),
                                        help="Convolution class. Can be GCNConv or GraphConv"),
          ):
     mlflow.set_experiment(experiment.value)
+    try:
+        out = subprocess.Popen(['nvidia-smi', '-L'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        stdout, stderr = out.communicate()
+        gpu_model = stdout.decode().strip()
+        mlflow.log_param('GPU', gpu_model)
+    except FileNotFoundError:
+        pass
     class_map = {
         Experiment.infection: Infection,
         Experiment.community: Community,
