@@ -53,7 +53,7 @@ class Saturation(Benchmark):
         for idx, node in enumerate(white_nodes):
             idx = idx % len(blue_red_combs)
             blue_count, red_count = blue_red_combs[idx]
-            if abs(red_count - blue_count) > 1:
+            if abs(red_count - blue_count) > 1 and min(red_count, blue_count) > 1:
                 nodes_to_test.append(node)
             for u in random.sample(blue_nodes, blue_count):
                 g.add_edge(node, u)
@@ -103,7 +103,7 @@ class Saturation(Benchmark):
                 white_values = edge_mask[white_ids]
                 minority = min(red_values, blue_values, key=len)
                 pvalue = ks_2samp(white_values, minority).pvalue
-                accs.append(float(1 - pvalue))
+                accs.append(1 if pvalue < 0.01 else 0)
                 all_attributions.append({'red': red_values.tolist(),
                                          'blue': blue_values.tolist(),
                                          'white': white_values.tolist()})
