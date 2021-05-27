@@ -1,5 +1,5 @@
-# Benchmark Design for GNN Explanation Methods
-The is the source code for the paper _Benchmark Design for GNN Explanation Methods_
+# When Comparing to Ground Truth is Wrong: On Evaluating GNN Explanation Methods
+The is the source code for the paper _When Comparing to Ground Truth is Wrong: On Evaluating GNN Explanation Methods_
 
 ## Required libraries
 You can install the required libraries by running:
